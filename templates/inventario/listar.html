@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('inv_lista_titulo') }}{% endblock %}
+{% block extra_css %}
+<style>
+.inventory-page{max-width:min(100%, 3000px);margin:1.5rem auto;padding:0 1rem;color:#172b43}.inventory-header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1.35rem}.inventory-title{font-size:1.65rem;font-weight:750;letter-spacing:-.025em;margin:0;color:#122b49}.inventory-subtitle{color:#718096;margin:.3rem 0 0;font-size:.92rem}.inventory-actions{display:flex;gap:.6rem;flex-wrap:wrap}.inventory-actions .btn{min-height:42px;font-weight:650;display:inline-flex;align-items:center;gap:.45rem}.inventory-panel{background:#fff;border:1px solid #e5ebf2;border-radius:14px;box-shadow:0 5px 18px rgba(20,45,75,.045)}.inventory-toolbar{padding:1rem 1.1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;border-bottom:1px solid #edf1f5}.inventory-search{width:min(100%,430px)}.inventory-search .form-control,.inventory-search .btn{min-height:40px}.inventory-count{font-size:.85rem;color:#738196;white-space:nowrap}.inventory-count strong{color:#263d58}.inventory-table-wrap{overflow-x:auto}.inventory-table{min-width:1060px;margin:0;border-collapse:separate;border-spacing:0}.inventory-table thead th{padding:.8rem .9rem;background:#f7f9fc;color:#718096;font-size:.71rem;text-transform:uppercase;letter-spacing:.055em;font-weight:750;border-bottom:1px solid #e7edf4;white-space:nowrap}.inventory-table tbody td{padding:.78rem .9rem;border-bottom:1px solid #edf1f5;vertical-align:middle;font-size:.87rem}.inventory-table tbody tr:last-child td{border-bottom:0}.inventory-table tbody tr:hover{background:#f9fbfd}.product-thumb{width:48px;height:48px;object-fit:cover;border:1px solid #e4eaf1;border-radius:9px;background:#f3f6f9;color:#9aa8b7}.product-thumb-placeholder{display:flex;align-items:center;justify-content:center;font-size:1.15rem}.product-primary{font-weight:700;color:#183653}.product-secondary{display:block;color:#8794a5;font-size:.76rem;margin-top:.16rem;max-width:290px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.inventory-code{font-variant-numeric:tabular-nums;color:#718096;font-size:.8rem}.stock-pill{display:inline-flex;align-items:center;gap:.4rem;border-radius:999px;padding:.3rem .62rem;font-size:.78rem;font-weight:700;white-space:nowrap}.stock-pill::before{content:"";height:7px;width:7px;border-radius:50%;background:currentColor}.stock-ok{background:#e9f7ef;color:#24804a}.stock-low{background:#fff1e9;color:#b45320}.stock-zero{background:#ffeded;color:#c0393c}.money{font-variant-numeric:tabular-nums;white-space:nowrap;color:#314860}.inventory-row-actions{display:flex;align-items:center;justify-content:flex-end;gap:.4rem}.inventory-row-actions .btn{font-size:.79rem;font-weight:650;white-space:nowrap}.stock-alert{border:1px solid #f3d79d;background:#fff9e9;color:#654c18;border-radius:12px;padding:.8rem 1rem;margin-bottom:1rem}.stock-alert strong{color:#a45b10}.stock-alert-list{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.5rem}.stock-alert-item{background:#fff;border:1px solid #f0dfb8;border-radius:7px;padding:.22rem .5rem;font-size:.78rem}.inventory-import{margin-top:.9rem;padding:.75rem 1rem}.inventory-import summary{cursor:pointer;color:#50647c;font-weight:650;font-size:.86rem}.inventory-import form{padding-top:.8rem}.inventory-empty{padding:3.5rem 1rem!important;text-align:center;color:#77869a}.inventory-empty i{display:block;font-size:1.8rem;color:#aab7c5;margin-bottom:.65rem}@media(max-width:767px){.inventory-page{padding:0 .65rem;margin:1rem auto}.inventory-header{flex-direction:column}.inventory-actions{width:100%}.inventory-actions .btn{flex:1;justify-content:center}.inventory-toolbar{align-items:flex-start;flex-direction:column}.inventory-search{width:100%}.inventory-count{white-space:normal}}
+</style>
+{% endblock %}
+{% block content %}
+<main class="inventory-page">
+    <header class="inventory-header">
+        <div>
+            <h1 class="inventory-title"><i class="fas fa-warehouse me-2 text-primary"></i>{{ t('inv_lista_titulo') }}</h1>
+            <p class="inventory-subtitle">Consulta existencias, precios y alertas de productos desde un solo lugar.</p>
+        </div>
+        <div class="inventory-actions">
+            <a href="{{ url_for('agregar_inventario') }}" class="btn btn-primary"><i class="fas fa-plus"></i>{{ t('inv_btn_nuevo') }}</a>
+            <a href="{{ url_for('menu_inicio') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i>{{ t('btn_volver_inicio') }}</a>
+        </div>
+    </header>
+
+    {% if alertas_stock > 0 %}
+    <section class="stock-alert" role="status">
+        <div><i class="fas fa-triangle-exclamation me-2"></i><strong>{{ alertas_stock }} producto(s)</strong> con existencias en el mínimo o por debajo.</div>
+        <div class="stock-alert-list">
+            {% for producto in productos_bajo_stock %}
+            <span class="stock-alert-item">{{ producto['nombre'] }} · {{ producto['cantidad'] }} / mínimo {{ producto['umbral_stock'] }}</span>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="inventory-panel" aria-label="Listado de productos">
+        <div class="inventory-toolbar">
+            <form action="{{ url_for('listar_inventario') }}" method="GET" class="input-group inventory-search">
+                <span class="input-group-text bg-white text-muted"><i class="fas fa-search"></i></span>
+                <input type="search" class="form-control border-start-0" name="search_query" placeholder="Buscar producto por nombre" value="{{ search_query or '' }}" aria-label="Buscar producto">
+                <button type="submit" class="btn btn-outline-primary">Buscar</button>
+                {% if search_query %}<a href="{{ url_for('listar_inventario') }}" class="btn btn-outline-secondary" title="Limpiar búsqueda"><i class="fas fa-times"></i></a>{% endif %}
+            </form>
+            <div class="inventory-count">Mostrando <strong>{{ inventario|length }}</strong> producto(s)</div>
+        </div>
+        <div class="inventory-table-wrap">
+            <table class="table inventory-table">
+                <thead><tr>
+                    <th scope="col">Foto</th><th scope="col">Producto</th><th scope="col">Código</th><th scope="col">Stock disponible</th>
+                    <th scope="col" class="text-end">Precio por caja</th><th scope="col" class="text-end">Precio por unidad</th>
+                    <th scope="col">Mínimo</th><th scope="col" class="text-end">Acciones</th>
+                </tr></thead>
+                <tbody>
+                {% for item in inventario %}
+                    <tr>
+                        <td>{% if item['imagen'] %}<img class="product-thumb" src="{{ url_for('static', filename=item['imagen']) }}" alt="Foto de {{ item['nombre'] }}" loading="lazy">{% else %}<span class="product-thumb product-thumb-placeholder" title="Este producto aún no tiene foto" aria-label="Sin foto"><i class="fas fa-camera"></i></span>{% endif %}</td>
+                        <td>
+                            <span class="product-primary">
+                                {% if idioma_actual == 'en' and item['nombre_en'] %}{{ item['nombre_en'] }}{% elif idioma_actual == 'zh' and item['nombre_zh'] %}{{ item['nombre_zh'] }}{% else %}{{ item['nombre'] }}{% endif %}
+                            </span>
+                            {% if (item['descripcion'] or '')|trim %}<span class="product-secondary" title="{{ item['descripcion'] }}">{{ item['descripcion'] }}</span>{% endif %}
+                        </td>
+                        <td class="inventory-code">#{{ item['id'] }}</td>
+                        <td>
+                            {% if item['cantidad'] <= 0 %}<span class="stock-pill stock-zero">Sin stock · {{ item['cantidad'] }}</span>
+                            {% elif item['cantidad'] <= item['umbral_stock'] %}<span class="stock-pill stock-low">Stock bajo · {{ item['cantidad'] }}</span>
+                            {% else %}<span class="stock-pill stock-ok">{{ item['cantidad'] }} unidades</span>{% endif %}
+                        </td>
+                        <td class="text-end money">S/ {{ '%.2f'|format(item['precio_unitario']) }}</td>
+                        <td class="text-end money">S/ {{ '%.2f'|format(item['precio_unidad']) }}</td>
+                        <td class="inventory-code">{{ item['umbral_stock'] }} unid.</td>
+                        <td><div class="inventory-row-actions">
+                            {% if not item['imagen'] %}<a href="{{ url_for('editar_inventario', id=item['id']) }}#imagen" class="btn btn-sm btn-outline-secondary"><i class="fas fa-camera me-1"></i>Añadir foto</a>{% endif %}
+                            <a href="{{ url_for('editar_inventario', id=item['id']) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-pen me-1"></i>Editar</a>
+                            <form action="{{ url_for('eliminar_inventario', id=item['id']) }}" method="POST" class="m-0" onsubmit="return confirm('{{ t('msg_conf_eliminar_prod') }} {{ item['nombre'] }}?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash me-1"></i>Eliminar</button>
+                            </form>
+                        </div></td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="8" class="inventory-empty"><i class="fas fa-box-open"></i>{% if search_query %}No se encontraron productos para <strong>“{{ search_query }}”</strong>.{% else %}Aún no hay productos registrados.{% endif %}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <details class="inventory-panel inventory-import">
+        <summary><i class="fas fa-file-import me-2"></i>Importar o actualizar productos desde Excel</summary>
+        <form action="{{ url_for('importar_inventario_excel') }}" method="POST" enctype="multipart/form-data" class="row g-2 align-items-end">
+            <div class="col-md-8"><label for="archivo_excel" class="form-label small fw-semibold">Archivo Excel (.xlsx)</label><input class="form-control" type="file" id="archivo_excel" name="archivo_excel" accept=".xlsx" required><small class="text-muted">Se conservan las existencias existentes; los productos nuevos empiezan con stock 0.</small></div>
+            <div class="col-md-4"><button type="submit" class="btn btn-outline-primary w-100"><i class="fas fa-upload me-2"></i>Importar Excel</button></div>
+        </form>
+    </details>
+</main>
+{% endblock %}

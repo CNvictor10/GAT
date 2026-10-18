@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Pagos y saldos{% endblock %}
+{% block extra_css %}
+<style>
+.payments-page{width:100%;max-width:3000px;margin:1rem auto}.payments-header{background:linear-gradient(120deg,var(--sidebar-bg),var(--primary-blue));color:#fff;border-radius:14px;padding:1.4rem 1.6rem}.payments-card{background:var(--bs-body-bg,#fff);border:1px solid #e4eaf1;border-radius:14px;padding:1.2rem;box-shadow:0 8px 24px rgba(15,35,60,.06)}.payment-form{display:flex;gap:.45rem;align-items:center;min-width:320px}.payment-form input{width:110px}.payment-form select{width:135px}.payment-form .btn{min-height:36px;white-space:nowrap}.balance-value{font-weight:700;color:#b45309}.payment-history{max-height:48vh;overflow:auto}.payment-history thead th{position:sticky;top:0;z-index:1}
+@media(max-width:768px){.payments-page{padding-inline:.25rem}.payments-card{padding:.75rem}.payment-form{min-width:0;flex-wrap:wrap}.payment-form input,.payment-form select{flex:1;min-width:110px}}
+</style>
+{% endblock %}
+{% block content %}
+<main class="container-fluid payments-page">
+    <header class="payments-header mb-4 d-flex align-items-center gap-3">
+        <span class="rounded-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;background:rgba(255,255,255,.14)"><i class="fas fa-money-bill-transfer fs-4"></i></span>
+        <div><h1 class="h4 fw-bold mb-1">Pagos y saldos</h1><p class="mb-0 small text-white-50">Registra abonos, combina medios de pago y consulta movimientos recientes.</p></div>
+    </header>
+
+    <section class="payments-card mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3 gap-3 flex-wrap"><div><h2 class="h5 fw-bold mb-1">Cotizaciones por cobrar</h2><p class="text-muted small mb-0">Aquí aparecen saldos pendientes de cotizaciones de días anteriores. Las creadas hoy se habilitan mañana.</p><p class="text-muted small mb-0 mt-1">Cada abono se suma a caja al registrarlo; el primer pago confirma la venta y descuenta el inventario una sola vez.</p></div><span class="badge text-bg-warning">{{ cotizaciones|length }} abiertas</span></div>
+        <div class="table-responsive"><table class="table table-hover align-middle">
+            <thead class="table-light"><tr><th>N.º</th><th>Cliente</th><th>Fecha</th><th class="text-end">Total</th><th class="text-end">Abonado</th><th class="text-end">Saldo</th><th>Estado</th><th>Registrar pago</th></tr></thead>
+            <tbody>
+            {% for c in cotizaciones %}
+                {% set saldo = (c['total'] or 0) - (c['abonado'] or 0) %}
+                <tr>
+                    <td><a href="{{ url_for('detalle_cotizacion', id=c['id']) }}">#{{ c['id'] }}</a></td>
+                    <td class="fw-semibold">{{ c['cliente_nombre'] }}</td><td>{{ c['fecha'] }}</td>
+                    <td class="text-end">S/ {{ '%.2f'|format(c['total'] or 0) }}</td>
+                    <td class="text-end text-success">S/ {{ '%.2f'|format(c['abonado'] or 0) }}</td>
+                    <td class="text-end balance-value">S/ {{ '%.2f'|format(saldo) }}</td>
+                    <td><span class="badge {{ 'text-bg-info' if c['estado']=='Parcial' else 'text-bg-warning' }}">{{ 'Pago parcial' if c['estado']=='Parcial' else 'Pendiente' }}</span></td>
+                    <td><form class="payment-form" method="POST" action="{{ url_for('route_aprobar_cotizacion', cotizacion_id=c['id']) }}">
+                        <input type="number" class="form-control form-control-sm" name="monto" min="0.01" max="{{ '%.2f'|format(saldo) }}" step="0.01" value="{{ '%.2f'|format(saldo) }}" required aria-label="Monto del abono">
+                        <select class="form-select form-select-sm" name="tipo_pago" required aria-label="Medio de pago">
+                            <option value="" selected disabled>Medio</option><option>Efectivo</option><option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta</option><option>Otro</option>
+                        </select>
+                        <button class="btn btn-sm btn-outline-success" type="submit"><i class="fas fa-check me-1"></i>Abonar</button>
+                    </form></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="8" class="text-center text-muted py-4">No hay cotizaciones con saldo pendiente.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+    </section>
+
+    <section class="payments-card">
+        <div class="d-flex justify-content-between align-items-center mb-3"><div><h2 class="h5 fw-bold mb-1">Movimientos recientes</h2><p class="text-muted small mb-0">Últimos 100 abonos recibidos.</p></div></div>
+        <div class="table-responsive payment-history"><table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light"><tr><th>Fecha y hora</th><th>N.º cotización</th><th>Cliente</th><th>Medio de pago</th><th class="text-end">Importe recibido</th></tr></thead>
+            <tbody>{% for p in pagos %}<tr><td>{{ p['fecha'] }}</td><td><a href="{{ url_for('detalle_cotizacion', id=p['id']) }}">#{{ p['id'] }}</a></td><td>{{ p['cliente_nombre'] }}</td><td><span class="badge text-bg-light border">{{ p['tipo_pago'] }}</span></td><td class="text-end fw-semibold">S/ {{ '%.2f'|format(p['ingreso_total'] or 0) }}</td></tr>{% else %}<tr><td colspan="5" class="text-center text-muted py-4">Aún no se han registrado pagos.</td></tr>{% endfor %}</tbody>
+        </table></div>
+    </section>
+</main>
+{% endblock %}

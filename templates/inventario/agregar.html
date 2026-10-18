@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Registrar producto{% endblock %}
+{% block extra_css %}
+<style>
+.product-editor { max-width: 920px; margin: 1.5rem auto; }
+.product-editor__hero { background: linear-gradient(120deg,var(--sidebar-bg),var(--primary-blue)); color:#fff; border-radius:16px 16px 0 0; padding:1.5rem 1.75rem; }
+.product-editor__card { border:1px solid #e4eaf1; border-top:0; border-radius:0 0 16px 16px; background:var(--bs-body-bg,#fff); box-shadow:0 14px 36px rgba(15,35,60,.08); }
+.product-editor__section { padding:1.5rem 1.75rem; border-bottom:1px solid #edf1f5; }
+.product-editor__section h3 { font-size:.92rem; font-weight:700; color:#263b53; margin:0 0 1rem; }
+.product-editor .form-label { font-weight:600; color:#34465b; font-size:.88rem; }
+.product-editor .form-control,.product-editor .input-group-text { min-height:44px; border-color:#d7e0ea; }
+.product-editor .form-control:focus { border-color:var(--primary-blue); box-shadow:0 0 0 .2rem rgba(7,157,161,.16); }
+.product-editor__footer { padding:1.25rem 1.75rem; background:#f7f9fc; border-radius:0 0 16px 16px; display:flex; justify-content:flex-end; align-items:center; gap:.75rem; }
+.product-editor__footer .btn { min-width:190px; min-height:46px; display:inline-flex; justify-content:center; align-items:center; margin:0; font-weight:700; }
+.product-editor__footer .btn-primary,
+.product-editor__footer .btn-primary:focus { color:#fff !important; background:var(--bs-primary) !important; border:1px solid var(--bs-primary) !important; opacity:1 !important; }
+.product-editor__footer .btn-primary:hover { color:#fff !important; background:#045f62 !important; border-color:#045f62 !important; }
+.product-editor__footer .btn-outline-secondary { color:#3d4d5e !important; background:#fff !important; border:1px solid #aebbc9 !important; }
+.product-editor__footer .btn-outline-secondary:hover { color:#24384e !important; background:#eaf0f6 !important; border-color:#8798aa !important; }
+.product-editor__hint { color:#6c7c8f; font-size:.8rem; }
+@media(max-width:576px){.product-editor__hero,.product-editor__section,.product-editor__footer{padding:1.15rem}.product-editor__footer{flex-direction:column-reverse;align-items:stretch}.product-editor__footer .btn{width:100%;min-width:0}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="container product-editor">
+    <div class="product-editor__hero d-flex align-items-center gap-3">
+        <span class="rounded-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;background:rgba(255,255,255,.14)"><i class="fas fa-box-open fs-4"></i></span>
+        <div><h1 class="h4 fw-bold mb-1">Registrar producto</h1><p class="mb-0 small text-white-50">Completa los datos para agregarlo al inventario.</p></div>
+    </div>
+    <form class="product-editor__card" method="POST" enctype="multipart/form-data" action="{{ url_for('agregar_inventario') }}">
+        <section class="product-editor__section">
+            <h3><i class="fas fa-tag text-primary me-2"></i>Identificación</h3>
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label" for="nombre">Nombre del producto <span class="text-danger">*</span></label><input class="form-control" id="nombre" name="nombre" placeholder="Ej. Lámpara LED 18 W" required autofocus></div>
+                <div class="col-md-6"><label class="form-label" for="descripcion">Descripción</label><input class="form-control" id="descripcion" name="descripcion" placeholder="Marca, modelo o característica" ></div>
+                <div class="col-12"><label class="form-label" for="imagen">Imagen del producto <span class="text-muted">(opcional)</span></label><input class="form-control" type="file" id="imagen" name="imagen" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"><div class="product-editor__hint mt-1">JPG, PNG o WEBP. Se mostrará como miniatura en el inventario.</div></div>
+            </div>
+        </section>
+        <section class="product-editor__section">
+            <h3><i class="fas fa-boxes-stacked text-primary me-2"></i>Existencias y empaque</h3>
+            <div class="row g-3">
+                <div class="col-sm-4"><label class="form-label" for="cantidad">Stock inicial</label><div class="input-group"><input class="form-control" type="number" id="cantidad" name="cantidad" min="0" value="0" required><span class="input-group-text">unid.</span></div></div>
+                <div class="col-sm-4"><label class="form-label" for="unidades_por_caja">Unidades por caja</label><div class="input-group"><input class="form-control" type="number" id="unidades_por_caja" name="unidades_por_caja" min="0" value="0"><span class="input-group-text">unid.</span></div></div>
+                <div class="col-sm-4"><label class="form-label" for="umbral_stock">Avisar cuando queden</label><div class="input-group"><input class="form-control" type="number" id="umbral_stock" name="umbral_stock" min="0" value="10" required><span class="input-group-text">unid.</span></div></div>
+            </div>
+            <div class="product-editor__hint mt-2">El aviso de stock bajo se activa al llegar al mínimo indicado.</div>
+        </section>
+        <section class="product-editor__section">
+            <h3><i class="fas fa-tags text-primary me-2"></i>Precios de venta</h3>
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label" for="precio_unitario">Precio de venta por caja (S/) <span class="text-danger">*</span></label><div class="input-group"><span class="input-group-text">S/</span><input class="form-control" type="number" id="precio_unitario" name="precio_unitario" min="0" step="0.01" placeholder="0.00" required></div></div>
+                <div class="col-md-6"><label class="form-label" for="precio_unidad_nuevo">Precio de venta por unidad (S/)</label><div class="input-group"><span class="input-group-text">S/</span><input class="form-control" type="number" id="precio_unidad_nuevo" name="precio_unidad_nuevo" min="0" step="0.01" value="0.00"></div></div>
+            </div>
+            <div class="product-editor__hint mt-2">Estos precios pueden aparecer en la cotización y su PDF. El costo de compra es interno y no se muestra aquí.</div>
+        </section>
+        <div class="product-editor__footer d-flex justify-content-end gap-2">
+            <a href="{{ url_for('listar_inventario') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i>Cancelar</a>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-check me-2"></i>Guardar producto</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

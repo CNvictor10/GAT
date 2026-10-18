@@ -1,0 +1,509 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('menu_dashboard') }} - Donglai{% endblock %}
+
+{% block extra_css %}
+<style>
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+    .kpi-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        border: 1px solid #e9edf4;
+        transition: all 0.2s ease;
+    }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .kpi-info h3 {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #64748b;
+        margin: 0 0 6px 0;
+        font-weight: 600;
+    }
+    .kpi-value {
+        font-size: 1.65rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0 0 4px 0;
+        line-height: 1.2;
+    }
+    .kpi-trend {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 2px 10px;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .trend-up { background: #dcfce7; color: #16a34a; }
+    .kpi-icon-wrapper {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        background: #e4f6f5;
+        color: #079da1;
+        flex-shrink: 0;
+    }
+    .middle-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+    .chart-card, .top-products-card, .section-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.25rem;
+        border: 1px solid #e9edf4;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .card-header-clean {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .card-header-clean h2 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #0f172a;
+        margin: 0;
+    }
+    .view-all-link {
+        font-size: 0.75rem;
+        color: #05777b;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .view-all-link:hover { text-decoration: underline; }
+    .bottom-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+    }
+    .clean-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    .clean-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .clean-item:last-child { border-bottom: none; }
+    .badge-status {
+        padding: 2px 12px;
+        border-radius: 20px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        display: inline-block;
+    }
+    .badge-success { background: #dcfce7; color: #16a34a; }
+    .badge-warning { background: #fef3c7; color: #d97706; }
+    .badge-danger { background: #fee2e2; color: #dc2626; }
+    .badge-secondary { background: #f1f5f9; color: #64748b; }
+    .btn-reorder {
+        background: #079da1;
+        color: white;
+        border: none;
+        padding: 4px 14px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .btn-reorder:hover { background: #05777b; }
+    .empty-state {
+        text-align: center;
+        padding: 1.5rem 0;
+        color: #94a3b8;
+    }
+    .empty-state i { font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5; }
+    .last-update {
+        font-size: 0.7rem;
+        color: #94a3b8;
+        text-align: right;
+        padding: 8px 0 0 0;
+    }
+    .error-box {
+        background: #fee2e2;
+        border: 1px solid #fecaca;
+        color: #dc2626;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem;
+    }
+    @media (max-width: 992px) {
+        .middle-grid, .bottom-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 576px) {
+        .kpi-grid { grid-template-columns: 1fr 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="top-header mb-4">
+    <div>
+        <h1 class="fw-bold text-dark m-0">{{ t('msg_bienvenido') }}, {{ current_user.nombre }}</h1>
+        <p class="text-muted small m-0">Resumen operativo en tiempo real desde Excel</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary bg-white text-dark py-2 px-3 border" style="min-width: auto; font-size: 0.85rem;">
+            <i class="fas fa-calendar-day me-2"></i> Hoy: {{ datetime.now().strftime('%d/%m/%Y') }}
+        </button>
+        <button class="btn btn-outline-primary bg-white text-dark py-2 px-3 border" style="min-width: auto; font-size: 0.85rem;" onclick="loadDashboardData()">
+            <i class="fas fa-sync-alt me-2"></i> Actualizar
+        </button>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid">
+    <div class="kpi-card kpi-blue">
+        <div class="kpi-info">
+            <h3>VENTAS DEL MES</h3>
+            <p class="kpi-value" id="ventasMes">Cargando...</p>
+            <span class="kpi-trend trend-up"><i class="fas fa-arrow-trend-up"></i> En tiempo real</span>
+        </div>
+        <div class="kpi-icon-wrapper"><i class="fas fa-cart-shopping"></i></div>
+    </div>
+
+    <div class="kpi-card kpi-amber">
+        <div class="kpi-info">
+            <h3>COTIZACIONES PENDIENTES</h3>
+            <p class="kpi-value" id="cotizacionesPendientes">Cargando...</p>
+            <span class="text-muted small">Por aprobar</span>
+        </div>
+        <div class="kpi-icon-wrapper"><i class="fas fa-file-invoice-dollar"></i></div>
+    </div>
+
+    <div class="kpi-card kpi-green">
+        <div class="kpi-info">
+            <h3>PRODUCTOS TOTALES</h3>
+            <p class="kpi-value" id="totalProductos">Cargando...</p>
+            <span class="text-muted small">Desde Excel</span>
+        </div>
+        <div class="kpi-icon-wrapper"><i class="fas fa-boxes-stacked"></i></div>
+    </div>
+
+    <div class="kpi-card kpi-purple">
+        <div class="kpi-info">
+            <h3>STOCK BAJO</h3>
+            <p class="kpi-value text-danger" id="stockBajo">Cargando...</p>
+            <span class="text-danger fw-semibold small">Requieren atención</span>
+        </div>
+        <div class="kpi-icon-wrapper" style="background-color: #fee2e2; color: #dc2626;">
+            <i class="fas fa-triangle-exclamation"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico y Módulos -->
+<div class="middle-grid">
+    <div class="chart-card">
+        <div class="card-header-clean mb-3">
+            <h2 class="h6 fw-bold m-0 text-dark"><i class="fas fa-chart-line text-primary me-2"></i>Rendimiento de Ventas</h2>
+            <span class="text-muted small" id="ultimaActualizacion">Actualizando...</span>
+        </div>
+        <div style="position: relative; height:240px; width:100%">
+            <canvas id="dashboardSalesChart"></canvas>
+        </div>
+        <div class="last-update" id="timestampDisplay">⏱️ Cargando datos...</div>
+    </div>
+
+    <div class="top-products-card d-flex flex-column justify-content-between">
+        <div>
+            <div class="card-header-clean mb-3">
+                <h2 class="h6 fw-bold m-0 text-dark"><i class="fas fa-star text-warning me-2"></i>Módulos del Sistema</h2>
+            </div>
+            <p class="text-muted small">Accesos rápidos de administración:</p>
+            <div class="d-flex flex-column gap-2">
+                <a href="{{ url_for('listar_inventario') }}" class="btn btn-light border text-start py-2 text-dark w-100 font-weight-normal" style="text-transform: none; font-size: 0.85rem;">
+                    <i class="fas fa-boxes text-secondary me-2"></i> {{ t('menu_inventario') }}
+                </a>
+                <a href="{{ url_for('listar_cotizaciones') }}" class="btn btn-light border text-start py-2 text-dark w-100 font-weight-normal" style="text-transform: none; font-size: 0.85rem;">
+                    <i class="fas fa-file-invoice-dollar text-secondary me-2"></i> {{ t('menu_cotizaciones') }}
+                </a>
+                <a href="{{ url_for('cierre_caja') }}" class="btn btn-light border text-start py-2 text-dark w-100 font-weight-normal" style="text-transform: none; font-size: 0.85rem;">
+                    <i class="fas fa-cash-register text-secondary me-2"></i> {{ t('menu_cierre_caja') }}
+                </a>
+            </div>
+        </div>
+        <div class="pt-3 border-top mt-3">
+            <span class="text-muted d-block small text-center">Donglai ERP v2.0 | Datos desde Excel</span>
+        </div>
+    </div>
+</div>
+
+<!-- Cotizaciones Recientes y Alertas -->
+<div class="bottom-grid">
+    <div class="section-card">
+        <div class="card-header-clean">
+            <h2 class="h6 fw-bold m-0 text-dark"><i class="fas fa-folder-open text-primary me-2"></i>Cotizaciones Recientes</h2>
+            <a href="{{ url_for('listar_cotizaciones') }}" class="view-all-link m-0">Ver todas</a>
+        </div>
+        <hr class="my-2 opacity-25">
+        <div class="clean-list" id="cotizacionesRecientes">
+            <div class="text-center py-3">
+                <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="text-muted small mt-2">Cargando cotizaciones...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="card-header-clean">
+            <h2 class="h6 fw-bold m-0 text-dark"><i class="fas fa-triangle-exclamation text-danger me-2"></i>Alertas de Inventario</h2>
+            <a href="{{ url_for('listar_inventario') }}" class="view-all-link text-danger m-0">Ir a Almacén</a>
+        </div>
+        <hr class="my-2 opacity-25">
+        <div class="clean-list" id="alertasStock">
+            <div class="text-center py-3">
+                <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="text-muted small mt-2">Cargando alertas...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="errorContainer" style="display:none;" class="error-box mt-3"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let salesChart = null;
+
+    function formatCurrency(amount) {
+        return 'S/ ' + Number(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function formatDate(dateStr) {
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('{{ locale_actual }}', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        } catch(e) {
+            return dateStr;
+        }
+    }
+
+    function getEstadoBadge(estado) {
+        const estados = {
+            'Aprobada': 'success',
+            'Pagada': 'success',
+            'Parcial': 'info',
+            'Pendiente': 'warning',
+            'Rechazado': 'danger',
+            'Rechazada': 'danger'
+        };
+        return estados[estado] || 'secondary';
+    }
+
+    function updateChart(labels, data) {
+        const ctx = document.getElementById('dashboardSalesChart').getContext('2d');
+        if (salesChart) { salesChart.destroy(); }
+
+        const hasData = data.some(v => v > 0);
+
+        salesChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Ventas (S/)',
+                    data: data,
+                    borderColor: '#079da1',
+                    backgroundColor: 'rgba(7, 157, 161, 0.08)',
+                    borderWidth: 3,
+                    tension: 0.3,
+                    fill: true,
+                    pointBackgroundColor: '#079da1',
+                    pointRadius: hasData ? 4 : 0,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.parsed.y === 0) return 'Sin ventas';
+                                return 'Ventas: S/ ' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        grid: { color: '#f1f5f9' },
+                        ticks: { color: '#64748b', font: { size: 11 }, callback: function(value) { return 'S/ ' + value.toFixed(0); } },
+                        beginAtZero: true
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#64748b', font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderCotizacionesRecientes(cotizaciones) {
+        const container = document.getElementById('cotizacionesRecientes');
+        if (!cotizaciones || cotizaciones.length === 0) {
+            container.innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><p class="small mb-0">No hay cotizaciones recientes</p></div>`;
+            return;
+        }
+
+        let html = '';
+        cotizaciones.forEach(c => {
+            const badgeClass = getEstadoBadge(c.estado);
+            html += `
+                <div class="clean-item">
+                    <div>
+                        <span class="d-block fw-semibold text-dark small">COT-${String(c.id).padStart(4, '0')}</span>
+                        <small class="text-muted">${c.cliente || 'Cliente'}</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge-status badge-${badgeClass}">${c.estado || 'Pendiente'}</span>
+                        <span class="d-block fw-bold text-dark small mt-1">${formatCurrency(c.total || 0)}</span>
+                        <small class="text-muted" style="font-size: 0.6rem;">${formatDate(c.fecha)}</small>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    function renderAlertasStock(productos) {
+        const container = document.getElementById('alertasStock');
+        if (!productos || productos.length === 0) {
+            container.innerHTML = `<div class="empty-state"><i class="fas fa-check-circle text-success"></i><p class="small mb-0">✅ ¡Todo en orden! No hay alertas de stock</p></div>`;
+            return;
+        }
+
+        let html = '';
+        productos.forEach(p => {
+            html += `
+                <div class="clean-item">
+                    <div>
+                        <span class="d-block fw-semibold text-dark small">${p.nombre || 'Producto'}</span>
+                        <small class="text-muted">Mín: ${p.umbral || 0} unidades</small>
+                    </div>
+                    <div class="text-end d-flex align-items-center gap-3">
+                        <div>
+                            <span class="text-danger fw-bold small d-block">${p.cantidad || 0} unids</span>
+                            <small class="text-muted">Disponible</small>
+                        </div>
+                        <button class="btn-reorder" onclick="window.location.href='{{ url_for('listar_inventario') }}'">Pedir</button>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    function mostrarError(mensaje) {
+        const container = document.getElementById('errorContainer');
+        container.style.display = 'block';
+        container.innerHTML = '⚠️ ' + mensaje;
+    }
+
+    function loadDashboardData() {
+        document.getElementById('timestampDisplay').textContent = '⏱️ Cargando...';
+        
+        fetch('/api/dashboard_data', {
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(data => {
+            
+            if (!data.success) {
+                mostrarError('Error del servidor: ' + (data.error || 'Error desconocido'));
+                return;
+            }
+
+            const d = data.data;
+
+            // Ocultar error si estaba visible
+            document.getElementById('errorContainer').style.display = 'none';
+
+            // Actualizar KPIs
+            document.getElementById('ventasMes').textContent = formatCurrency(d.ventas_mes || 0);
+            document.getElementById('cotizacionesPendientes').textContent = d.cotizaciones_pendientes || 0;
+            document.getElementById('totalProductos').textContent = d.total_productos || 0;
+            document.getElementById('stockBajo').textContent = d.stock_bajo || 0;
+
+            // Actualizar gráfico
+            updateChart(d.labels_semana || ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'], 
+                       d.ventas_semana || [0,0,0,0,0,0,0]);
+
+            // Actualizar cotizaciones recientes
+            renderCotizacionesRecientes(d.cotizaciones_recientes || []);
+
+            // Actualizar alertas de stock
+            renderAlertasStock(d.productos_stock_bajo || []);
+
+            // Actualizar timestamp
+            const timestamp = d.timestamp || new Date().toLocaleTimeString();
+            document.getElementById('timestampDisplay').textContent = '⏱️ Última actualización: ' + timestamp;
+            document.getElementById('ultimaActualizacion').textContent = 'Actualizado: ' + timestamp;
+        })
+        .catch(error => {
+            console.error('❌ ERROR:', error);
+            mostrarError('Error de conexión: ' + error.message + '. Verifica que el servidor esté corriendo.');
+            document.getElementById('timestampDisplay').textContent = '⏱️ Error al conectar con el servidor';
+            
+            // Mostrar valores por defecto en lugar de "Error"
+            document.getElementById('ventasMes').textContent = 'S/ 0.00';
+            document.getElementById('cotizacionesPendientes').textContent = '0';
+            document.getElementById('totalProductos').textContent = '0';
+            document.getElementById('stockBajo').textContent = '0';
+        });
+    }
+
+    // Cargar datos al iniciar y cada 30 segundos
+    document.addEventListener('DOMContentLoaded', function() {
+        loadDashboardData();
+        setInterval(loadDashboardData, 30000);
+    });
+</script>
+{% endblock %}

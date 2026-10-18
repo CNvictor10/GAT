@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('cot_nueva_titulo') }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Contenedor principal centrado y limpio */
+    .content-container {
+        width: 100%; max-width: none; margin: 0 auto 1rem; padding: 0;
+        background: var(--bs-body-bg,#fff); border: 1px solid #e4eaf1;
+        border-radius: 16px; box-shadow: 0 14px 36px rgba(15,35,60,.08); overflow: hidden;
+    }
+
+    /* Títulos de sección */
+    .section-title {
+        font-size: .95rem; font-weight: 700; color: #263b53;
+        border-bottom: 1px solid #edf1f5; padding-bottom: .85rem;
+        margin: 1.75rem 0 1rem; letter-spacing: 0;
+    }
+    .quote-editor__hero { background:linear-gradient(120deg,var(--sidebar-bg),var(--primary-blue)); color:#fff; padding:1.5rem 1.75rem; }
+    .quote-editor__body { padding:1.5rem 1.75rem; }
+    .quote-editor__actions { background:#f7f9fc; padding:.9rem 1.25rem; border-top:1px solid #edf1f5; gap:.5rem!important; }
+    .quote-editor__actions .btn { min-width:160px; min-height:42px; font-weight:700; }
+    .quote-editor__actions .btn-success { color:#fff!important; background:#16804a!important; border-color:#16804a!important; }
+    .quote-editor__actions .btn-success:hover { background:#11663b!important; border-color:#11663b!important; }
+    .client-fields { padding:1rem; border:1px solid #e4eaf1; border-radius:12px; background:#fbfcfe; }
+    .client-fields .form-label { color:#34465b; font-size:.88rem; font-weight:600; }
+    .client-fields .form-control,.client-fields .input-group-text { min-height:44px; }
+    @media(max-width:576px){.quote-editor__hero,.quote-editor__body,.quote-editor__actions{padding:1.1rem}.quote-editor__actions{display:flex;flex-direction:column-reverse}.quote-editor__actions .btn{width:100%}}
+
+    /* Ajustes de Tabla */
+    #products_table thead th {
+        background-color: #f8f9fa;
+        color: #495057;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        border-bottom: 2px solid #dee2e6;
+        vertical-align: middle;
+    }
+
+    #products_table tbody td {
+        vertical-align: middle;
+        padding: .4rem .65rem;
+    }
+    #products_table { width:100%; min-width:1040px; }
+    #products_table tbody tr { height:54px; }
+    #products_table tbody td { font-size:.9rem; }
+    #products_table .form-control { min-height:36px; padding:.35rem .55rem; font-size:.88rem; }
+    #products_table .quantity-input { min-width:78px; }
+    #products_table .price-input { min-width:112px; }
+    #products_table .subtotal-display { white-space:nowrap; font-size:.92rem; }
+    .quote-product-table { max-height:55vh; overflow:auto; overscroll-behavior:contain; }
+    .quote-product-table #products_table thead { position:sticky; top:0; z-index:2; }
+    .quote-product-search { padding:1.25rem!important; }
+    @media(max-width:767px){.quote-editor__body{padding:1rem}.client-fields{margin-left:0;margin-right:0}.quote-product-search{padding:1rem!important}#products_table{min-width:940px}}
+
+    /* Inputs más limpios */
+    .form-control, .form-select {
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--bs-primary);
+        box-shadow: 0 0 0 0.25rem rgba(7, 157, 161, 0.16);
+    }
+
+    /* Botón de Toggle sutil */
+    .btn-toggle-opt {
+        font-size: 0.85rem;
+        text-decoration: none;
+        font-weight: 600;
+        color: var(--bs-primary);
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+    }
+    .btn-toggle-opt:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-container">
+    <div class="quote-editor__hero d-flex align-items-center gap-3">
+        <span class="rounded-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;background:rgba(255,255,255,.14)"><i class="fas fa-file-invoice-dollar fs-4"></i></span>
+        <div><h1 class="h4 fw-bold mb-1">{{ t('cot_nueva_titulo') }}</h1><p class="mb-0 small text-white-50">Completa los datos del cliente y agrega los productos.</p></div>
+    </div>
+    <form method="POST" id="cotizacionForm" novalidate class="quote-editor__body">
+
+        <div class="mb-4">
+            <label for="razon_social_id" class="form-label fw-bold">Razón social emisora *</label>
+            <select class="form-select" id="razon_social_id" name="razon_social_id" required>
+                <option value="">Selecciona la empresa que emitirá la cotización</option>
+                {% for razon in razones_sociales %}
+                <option value="{{ razon['id'] }}">{{ razon['nombre'] }}{% if razon['ruc'] %} — RUC {{ razon['ruc'] }}{% endif %}</option>
+                {% endfor %}
+            </select>
+            {% if not razones_sociales %}
+            <div class="form-text text-danger">El administrador debe agregar las razones sociales antes de crear cotizaciones.</div>
+            {% else %}
+            <div class="form-text">La empresa elegida quedará guardada en esta cotización.</div>
+            {% endif %}
+        </div>
+
+        <div class="section-title text-primary">
+            <i class="fas fa-user-check me-2"></i>{{ t('sec_info_cliente') }}
+        </div>
+
+        <div class="client-fields row g-3">
+            <div class="col-md-6"><label for="cliente_nombre" class="form-label">Nombre del cliente <span class="text-danger">*</span></label><input type="text" class="form-control" id="cliente_nombre" name="cliente_nombre" placeholder="Nombre completo o razón social" required><div class="invalid-feedback">{{ t('err_ingrese_nombre') }}</div></div>
+            <div class="col-md-6"><label for="cliente_celular" class="form-label">Celular</label><input type="tel" class="form-control" id="cliente_celular" name="cliente_celular" placeholder="999 999 999"></div>
+            <div class="col-md-6"><label for="cliente_direccion" class="form-label">Dirección</label><input type="text" class="form-control" id="cliente_direccion" name="cliente_direccion" placeholder="Dirección del cliente"></div>
+            <div class="col-md-6"><label for="cliente_ruc" class="form-label">RUC o DNI <span class="text-muted fw-normal">(opcional)</span></label><input type="text" class="form-control" id="cliente_ruc" name="cliente_ruc" placeholder="RUC o DNI"></div>
+        </div>
+
+        <div class="section-title text-secondary mt-5">
+            <i class="fas fa-boxes me-2"></i>{{ t('sec_detalle_prod') }}
+        </div>
+
+        <div class="card bg-light border-0 p-3 mb-3 quote-product-search">
+            <label class="form-label small fw-bold text-muted">{{ t('lbl_buscar_inv') }}</label>
+            <div class="input-group">
+                <input type="text" id="product_search" class="form-control form-control-lg" placeholder="{{ t('ph_escribe_prod') }}" list="product_options">
+                <button class="btn btn-primary fw-bold px-4" type="button" id="add_product_btn">
+                    <i class="fas fa-plus me-1"></i> {{ t('btn_agregar') }}
+                </button>
+            </div>
+            <small class="text-muted mt-1 ms-1">{{ t('hlp_autocompletar') }}</small>
+
+            <datalist id="product_options">
+                {% for producto in productos_inventario %}
+                <option value="{{ producto[1] }}"
+                        data-id="{{ producto[0] }}"
+                        data-price="{{ producto[2] }}"
+                        data-descripcion="{{ producto[3] if producto[3] else '' }}">
+                {% endfor %}
+            </datalist>
+        </div>
+
+        <div class="table-responsive border rounded mb-4 quote-product-table">
+            <table class="table table-hover mb-0" id="products_table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 30%;">{{ t('inv_col_nombre') }}</th>
+                        <th style="width: 25%;">{{ t('inv_col_desc') }}</th>
+                        <th class="text-center" style="width: 10%;">{{ t('inv_col_cant') }}</th>
+                        <th class="text-center" style="width: 15%;">{{ t('inv_col_precio') }} (S/)</th>
+                        <th class="text-end" style="width: 15%;">{{ t('col_subtotal') }}</th>
+                        <th style="width: 5%;"></th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white">
+                    </tbody>
+                <tfoot class="bg-light">
+                    <tr>
+                        <td colspan="4" class="text-end fw-bold text-secondary pt-3">{{ t('lbl_total_pagar') }}</td>
+                        <td colspan="2" class="text-end pt-3 pe-4">
+                            <span class="fs-4 fw-bold text-success">S/. <span id="total-cotizacion">0.00</span></span>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="section-title text-secondary">
+            <i class="fas fa-hand-holding-usd me-2"></i>{{ t('sec_condiciones') }}
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm bg-light">
+                    <div class="card-body">
+                        <label for="tipo_pago" class="form-label fw-bold">{{ t('lbl_metodo_preferente') }}</label>
+                        <select class="form-select" id="tipo_pago" name="tipo_pago">
+                            <option value="" selected>{{ t('lbl_seleccionar') }}</option>
+                            <option value="Efectivo">{{ t('pago_efectivo') }}</option>
+                            <option value="Transferencia Bancaria">{{ t('pago_transf') }}</option>
+                            <option value="Yape/Plin">Yape/Plin</option>
+                            <option value="Tarjeta de Crédito/Débito">{{ t('pago_tarjeta') }}</option>
+                        </select>
+                        <div class="invalid-feedback">{{ t('err_req_aprobada') }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm bg-light">
+                    <div class="card-body">
+                        <label for="estado_cotizacion" class="form-label fw-bold">{{ t('lbl_estado_inicial') }}</label>
+                        <select class="form-select border-primary" id="estado_cotizacion" name="estado_cotizacion">
+                            <option value="Pendiente" selected>🟡 {{ t('opt_pendiente_desc') }}</option>
+                        </select>
+                        <div class="form-text small mt-2"><i class="fas fa-info-circle"></i> {{ t('hlp_aprobada_req') }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="quote-editor__actions d-flex justify-content-end align-items-center gap-2">
+            <a href="{{ url_for('listar_cotizaciones') }}" class="btn btn-outline-secondary px-4">
+                {{ t('btn_cancelar') }}
+            </a>
+            <button type="submit" class="btn btn-success fw-bold px-5 py-2" id="saveBtn">
+                <i class="fas fa-save me-2"></i> Guardar cotización
+            </button>
+        </div>
+
+        {# Inputs Ocultos #}
+        <input type="hidden" name="productos_seleccionados" id="productos_seleccionados_input">
+        <input type="hidden" name="total_cotizacion_hidden" id="total_cotizacion_hidden">
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- REFERENCIAS DOM ---
+        const productSearchInput = document.getElementById('product_search');
+        const addProductBtn = document.getElementById('add_product_btn');
+        const productsTableBody = document.querySelector('#products_table tbody');
+        const totalDisplay = document.getElementById('total-cotizacion');
+        const totalHiddenInput = document.getElementById('total_cotizacion_hidden');
+        const cotizacionForm = document.getElementById('cotizacionForm');
+        const productosSeleccionadosInput = document.getElementById('productos_seleccionados_input');
+        const clienteNombreInput = document.getElementById('cliente_nombre');
+        const estadoSelect = document.getElementById('estado_cotizacion');
+        const pagoSelect = document.getElementById('tipo_pago');
+
+        // --- DATOS INVENTARIO ---
+        const datalistOptions = document.getElementById('product_options').options;
+        const productosInventario = Array.from(datalistOptions).map(option => ({
+            id: option.dataset.id,
+            nombre: option.value,
+            precio: parseFloat(option.dataset.price),
+            descripcion: option.dataset.descripcion || '',
+        }));
+
+        // --- CÁLCULO DE TOTALES ---
+        const updateTotal = () => {
+            let total = 0;
+            productsTableBody.querySelectorAll('tr').forEach(row => {
+                // Buscamos el span dentro de la celda de subtotal para mayor precisión
+                const subtotalCell = row.querySelector('.subtotal-val');
+                if(subtotalCell) {
+                    total += parseFloat(subtotalCell.textContent) || 0;
+                }
+            });
+            totalDisplay.textContent = total.toFixed(2);
+            totalHiddenInput.value = total.toFixed(2);
+        };
+
+        const updateRowSubtotal = (row) => {
+            const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
+            const price = parseFloat(row.querySelector('.price-input').value) || 0;
+            const subtotal = (quantity * price);
+
+            // Actualizamos el texto visible
+            const subtotalCell = row.querySelector('.subtotal-display');
+            if(subtotalCell) {
+                subtotalCell.innerHTML = `S/. <span class="subtotal-val">${subtotal.toFixed(2)}</span>`;
+            }
+            updateTotal();
+        }
+
+        // --- CREAR FILA HTML ---
+        const createProductRow = (producto) => {
+            const row = document.createElement('tr');
+            row.dataset.id = producto.id;
+
+            // INYECTAMOS LA VARIABLE DE TRADUCCIÓN EN EL PLACEHOLDER
+            const placeholderDetalle = "{{ t('js_detalles') }}";
+
+            row.innerHTML = `
+                <td class="fw-bold text-primary">${producto.nombre}</td>
+                <td>
+                    <input type="text" class="form-control form-control-sm description-input" value="${producto.descripcion}" placeholder="${placeholderDetalle}">
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm quantity-input text-center fw-bold" value="1" min="1">
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm price-input text-center" value="${producto.precio.toFixed(2)}" min="0.01" step="0.01">
+                </td>
+                <td class="text-end fw-bold subtotal-display">
+                    S/. <span class="subtotal-val">${producto.precio.toFixed(2)}</span>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-outline-danger btn-sm border-0 remove-product-btn" title="Quitar producto" aria-label="Quitar producto">
+                        <i class="fas fa-times me-1"></i>Quitar
+                    </button>
+                </td>
+            `;
+            productsTableBody.appendChild(row);
+            updateTotal();
+        };
+
+        // --- AGREGAR PRODUCTO ---
+        addProductBtn.addEventListener('click', () => {
+            const searchTerm = productSearchInput.value.trim();
+            if (!searchTerm) {
+                // TRADUCCIÓN JS
+                alert("{{ t('js_err_buscar') }}");
+                productSearchInput.focus();
+                return;
+            }
+
+            const foundProduct = productosInventario.find(p => p.nombre.trim() === searchTerm);
+
+            if (foundProduct) {
+                const existingRow = productsTableBody.querySelector(`tr[data-id='${foundProduct.id}']`);
+                if (existingRow) {
+                    // Si ya existe, suma 1 a la cantidad
+                    const quantityInput = existingRow.querySelector('.quantity-input');
+                    quantityInput.value = parseInt(quantityInput.value) + 1;
+                    updateRowSubtotal(existingRow);
+                } else {
+                    createProductRow(foundProduct);
+                }
+                productSearchInput.value = '';
+                productSearchInput.focus(); // Mantener foco para seguir agregando
+            } else {
+                // TRADUCCIÓN JS
+                alert("{{ t('js_err_no_encontrado') }}");
+            }
+        });
+
+        // Permitir agregar con ENTER
+        productSearchInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addProductBtn.click();
+            }
+        });
+
+        // --- EVENTOS EN LA TABLA (ELIMINAR Y EDITAR) ---
+        productsTableBody.addEventListener('click', (e) => {
+            if (e.target.closest('.remove-product-btn')) {
+                e.target.closest('tr').remove();
+                updateTotal();
+            }
+        });
+
+        productsTableBody.addEventListener('input', (e) => {
+            const target = e.target;
+            if (target.classList.contains('quantity-input') || target.classList.contains('price-input')) {
+                const row = target.closest('tr');
+                if (parseFloat(target.value) < 0) target.value = target.classList.contains('price-input') ? '0.01' : '1';
+                updateRowSubtotal(row);
+            }
+        });
+
+        // --- ENVÍO DEL FORMULARIO ---
+        cotizacionForm.addEventListener('submit', (e) => {
+            pagoSelect.classList.remove('is-invalid');
+
+            // El nombre identifica la cotización y es obligatorio.
+            const clienteNombre = clienteNombreInput.value.trim();
+            if (!clienteNombre) {
+                e.preventDefault();
+                clienteNombreInput.classList.add('is-invalid');
+                clienteNombreInput.focus();
+                return;
+            }
+            clienteNombreInput.classList.remove('is-invalid');
+
+            // 2. Validar Productos
+            const productos = [];
+            productsTableBody.querySelectorAll('tr').forEach(row => {
+                const quantityInput = row.querySelector('.quantity-input');
+                const priceInput = row.querySelector('.price-input');
+                const descriptionInput = row.querySelector('.description-input');
+
+                const id = row.dataset.id;
+                const cantidad = parseFloat(quantityInput.value) || 0;
+                const precio = parseFloat(priceInput.value) || 0;
+                const descripcion = descriptionInput.value.trim();
+
+                if (cantidad > 0 && precio > 0) {
+                    productos.push({
+                        id: id,
+                        cantidad: cantidad,
+                        precio: precio,
+                        descripcion: descripcion
+                    });
+                }
+            });
+
+            if (productos.length === 0) {
+                e.preventDefault();
+                // TRADUCCIÓN JS
+                alert("{{ t('js_err_lista_vacia') }}");
+                return;
+            }
+
+            // 3. Validar Pago si es Aprobada
+            const estado = estadoSelect.value;
+            const pago = pagoSelect.value;
+
+            if (estado === 'Pagada' && (pago === '' || pago === null)) {
+                e.preventDefault();
+                // TRADUCCIÓN JS
+                alert("{{ t('js_err_aprobada_pago') }}");
+                pagoSelect.classList.add('is-invalid');
+                pagoSelect.focus();
+                return;
+            }
+
+            // Todo OK
+            productosSeleccionadosInput.value = JSON.stringify(productos);
+        });
+
+        updateTotal();
+    });
+</script>
+{% endblock %}

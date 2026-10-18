@@ -1,0 +1,489 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ t('cot_editar_titulo') }} #{{ cotizacion.id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .product-list-container {
+        border: 1px solid #dee2e6;
+        padding: 28px;
+        min-width: 0;
+        border-radius: 0.5rem;
+        background-color: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .detalle-row {
+        border-bottom: 1px dashed #e9ecef;
+        padding: 8px 4px;
+        transition: background-color 0.2s;
+    }
+    .detalle-row .form-control { min-height:38px; font-size:.9rem; }
+    .detalle-row > div { padding-left:.55rem; padding-right:.55rem; }
+    #detalleCotizacionContainer { max-height:55vh; overflow-y:auto; overscroll-behavior:contain; padding-inline:.25rem; }
+    .cotizacion-edit-page { width:100%; max-width:none; }
+    .detalle-row:hover {
+        background-color: #f8f9fa;
+    }
+    .detalle-row:last-child {
+        border-bottom: none;
+    }
+    .total-summary {
+        font-size: 1.4em;
+        font-weight: 700;
+        color: var(--primary-blue-dark);
+    }
+    /* Estilos responsivos adaptados para inputs móviles */
+    @media (max-width: 767.98px) {
+        .detalle-row {
+            margin-bottom: 1rem;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            background-color: #fff;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid cotizacion-edit-page px-3 px-xl-4 mt-4">
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4 gap-2">
+        <h2 class="text-primary mb-0"><i class="fas fa-edit me-2"></i>{{ t('cot_editar_titulo') }} #{{ cotizacion.id }}</h2>
+        <span class="badge bg-secondary fs-6">ID: {{ cotizacion.id }}</span>
+    </div>
+    <hr>
+
+    <form method="POST" action="{{ url_for('editar_cotizacion', id=cotizacion.id) }}" id="editarCotizacionForm" class="needs-validation" novalidate>
+
+        {# --- SECCIÓN: DATOS DEL CLIENTE --- #}
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light"><strong>{{ t('sec_datos_cliente') }}</strong></div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="razon_social_id" class="form-label">Razón social emisora (*)</label>
+                        <select class="form-select" id="razon_social_id" name="razon_social_id" required>
+                            <option value="" disabled {% if not cotizacion['razon_social_id'] %}selected{% endif %}>Selecciona la empresa emisora</option>
+                            {% for razon in razones_sociales %}
+                            <option value="{{ razon['id'] }}" {% if razon['id'] == cotizacion['razon_social_id'] %}selected{% endif %}>
+                                {{ razon['nombre'] }}{% if razon['ruc'] %} — RUC {{ razon['ruc'] }}{% endif %}{% if not razon['activa'] %} (inactiva; solo para esta cotización){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <div>
+                            <label for="cliente_nombre" class="form-label">{{ t('cot_col_cliente') }} (*)</label>
+                            <input type="text" class="form-control" id="cliente_nombre" name="cliente_nombre" value="{{ cotizacion.cliente_nombre }}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div>
+                            <label for="cliente_celular" class="form-label">{{ t('lbl_celular') }} {{ t('lbl_opcional') }}</label>
+                            <input type="text" class="form-control" id="cliente_celular" name="cliente_celular" value="{{ cotizacion.cliente_celular or '' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div>
+                            <label for="cliente_ruc" class="form-label">{{ t('lbl_ruc') }} {{ t('lbl_opcional') }}</label>
+                            <input type="text" class="form-control" id="cliente_ruc" name="cliente_ruc" value="{{ cotizacion.cliente_ruc or '' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div>
+                            <label for="cliente_direccion" class="form-label">{{ t('lbl_direccion') }} {{ t('lbl_opcional') }}</label>
+                            <input type="text" class="form-control" id="cliente_direccion" name="cliente_direccion" value="{{ cotizacion.cliente_direccion or '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# --- SECCIÓN: CONDICIONES --- #}
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light"><strong>{{ t('sec_condiciones') }}</strong></div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div>
+                            <label for="tipo_pago" class="form-label fw-bold">{{ t('cot_col_pago') }} (*)</label>
+                            <select class="form-select" id="tipo_pago" name="tipo_pago">
+                                <option value="" {% if not cotizacion.tipo_pago %}selected{% endif %}>{{ t('lbl_seleccionar') }}</option>
+                                <option value="Efectivo" {% if cotizacion.tipo_pago == 'Efectivo' %}selected{% endif %}>{{ t('pago_efectivo') }}</option>
+                                <option value="Yape" {% if cotizacion.tipo_pago == 'Yape' %}selected{% endif %}>Yape</option>
+                                <option value="Plin" {% if cotizacion.tipo_pago == 'Plin' %}selected{% endif %}>Plin</option>
+                                <option value="Transferencia BCP" {% if cotizacion.tipo_pago == 'Transferencia BCP' %}selected{% endif %}>BCP {{ t('pago_transf') }}</option>
+                                <option value="Transferencia Interbank" {% if cotizacion.tipo_pago == 'Transferencia Interbank' %}selected{% endif %}>Interbank {{ t('pago_transf') }}</option>
+                                <option value="Tarjeta" {% if cotizacion.tipo_pago == 'Tarjeta' %}selected{% endif %}>{{ t('pago_tarjeta') }}</option>
+                                <option value="Otro" {% if cotizacion.tipo_pago == 'Otro' %}selected{% endif %}>{{ t('pago_otro') }}</option>
+                            </select>
+                            <div class="invalid-feedback">{{ t('msg_validar_pago') }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div>
+                            <label for="estado" class="form-label fw-bold">{{ t('cot_col_estado') }} (*)</label>
+                            <select class="form-select" id="estado" name="estado" required>
+                                <option value="Pendiente" {% if cotizacion.estado == 'Pendiente' %}selected{% endif %}>{{ t('cot_estado_pendiente') }}</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div>
+                            <label class="form-label">{{ t('cot_col_fecha') }}</label>
+                            <input type="text" class="form-control bg-light" value="{{ cotizacion.fecha }}" readonly disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# --- SECCIÓN: DETALLES DE PRODUCTOS --- #}
+        <h4 class="mt-4"><i class="fas fa-boxes me-2"></i>{{ t('sec_detalles_prod') }}</h4>
+        <div class="product-list-container mb-4">
+
+            {# Cabecera oculta en móviles #}
+            <div class="row fw-bold border-bottom pb-2 mb-2 d-none d-md-flex text-secondary">
+                <div class="col-md-2">{{ t('inv_col_nombre') }}</div>
+                <div class="col-md-2">{{ t('inv_col_desc') }} {{ t('lbl_editable') }}</div>
+                <div class="col-md-1 text-center">{{ t('inv_col_cant') }}</div>
+                <div class="col-md-2">Costo unitario</div>
+                <div class="col-md-2">{{ t('inv_col_precio') }} unitario</div>
+                <div class="col-md-2 text-end">{{ t('col_subtotal') }}</div>
+                <div class="col-md-1"></div>
+            </div>
+
+            <div id="detalleCotizacionContainer"></div>
+
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center mt-4 border-top pt-3 gap-3">
+                <button type="button" class="btn btn-info text-white w-100 w-sm-auto shadow-sm" data-bs-toggle="modal" data-bs-target="#agregarProductoModal">
+                    <i class="fa fa-plus-circle"></i> {{ t('btn_anadir_prod') }}
+                </button>
+                <p class="total-summary mb-0">
+                    {{ t('cot_col_total') }}: <span class="text-primary fw-bold">S/. <span id="totalCotizacionDisplay">0.00</span></span>
+                </p>
+                <p class="mb-0 text-danger fw-semibold">Costo total: S/. <span id="totalCostoDisplay">0.00</span></p>
+                <p class="mb-0 text-success fw-semibold">Margen estimado: S/. <span id="margenDisplay">0.00</span></p>
+            </div>
+        </div>
+
+        <input type="hidden" id="productos_seleccionados" name="productos_seleccionados" value="">
+
+        {# --- BOTONES DE ACCIÓN --- #}
+        <div class="mt-4 text-center mb-5 d-flex flex-column flex-sm-row justify-content-center gap-2">
+            <button type="submit" name="accion" value="guardar" class="btn btn-success btn-lg px-4 shadow-sm"><i class="fa fa-save"></i> {{ t('btn_guardar') }}</button>
+            <button type="submit" name="accion" value="guardar_pdf" class="btn btn-primary btn-lg px-4 shadow-sm"><i class="fas fa-file-pdf me-1"></i>Guardar y descargar PDF</button>
+            <a href="{{ url_for('listar_cotizaciones') }}" class="btn btn-secondary btn-lg px-5 shadow-sm">{{ t('btn_cancelar') }}</a>
+        </div>
+    </form>
+</div>
+
+{# --- MODAL DE AGREGAR PRODUCTO --- #}
+<div class="modal fade" id="agregarProductoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-cart-plus me-2"></i>{{ t('modal_titulo_prod') }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="producto_select" class="form-label fw-bold">{{ t('inv_col_nombre') }} (*)</label>
+                    <select class="form-select" id="producto_select">
+                        <option value="">{{ t('lbl_seleccionar') }}</option>
+                        {% for producto in productos_inventario %}
+                            <option value="{{ producto[0] }}"
+                                    data-nombre="{{ producto[1] }}"
+                                    data-precio="{{ producto[2] }}"
+                                    data-desc="{{ producto[3] or '' }}"
+                                    data-costo="{{ producto[4] or 0 }}">
+                                {{ producto[1] }} (S/. {{ "%.2f"|format(producto[2]) }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="row g-3">
+                    <div class="col-4">
+                        <div class="mb-3">
+                            <label for="cantidad_input" class="form-label fw-bold">{{ t('inv_col_cant') }} (*)</label>
+                            <input type="number" class="form-control" id="cantidad_input" value="1" min="1">
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="mb-3">
+                            <label for="precio_input" class="form-label fw-bold">{{ t('inv_col_precio') }} (S/.) (*)</label>
+                            <input type="number" class="form-control" id="precio_input" step="0.01" min="0.01">
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="mb-3">
+                            <label for="costo_input" class="form-label fw-bold">Costo unit. (S/.)</label>
+                            <input type="number" class="form-control" id="costo_input" step="0.01" min="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label for="descripcion_input" class="form-label fw-bold">{{ t('inv_col_desc') }} {{ t('lbl_editable') }}</label>
+                    <textarea class="form-control" id="descripcion_input" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('btn_cancelar') }}</button>
+                <button type="button" class="btn btn-primary" onclick="agregarProductoAlDetalle()">{{ t('btn_agregar_lista') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let detallesCotizacion = [];
+    const detallesIniciales = {{ detalles | tojson }};
+
+    // Inicializar datos del backend
+    detallesIniciales.forEach(item => {
+        detallesCotizacion.push({
+            temp_id: Date.now() + Math.random(),
+            producto_id: item.producto_id,
+            nombre: item.nombre_producto,
+            descripcion: item.descripcion || '',
+            cantidad: parseInt(item.cantidad),
+            precio: parseFloat(item.precio_unitario_cotizado),
+            costo: parseFloat(item.costo_unitario || 0)
+        });
+    });
+
+    // --- MANEJO DE CAMBIOS DINÁMICOS DESDE LA TABLA ---
+    function updateDetalleDescripcion(tempId, nuevaDesc) {
+        const item = detallesCotizacion.find(i => i.temp_id === parseFloat(tempId));
+        if (item) item.descripcion = nuevaDesc;
+    }
+
+    function updateDetalleCantidad(tempId, val) {
+        const item = detallesCotizacion.find(i => i.temp_id === parseFloat(tempId));
+        if (item) {
+            item.cantidad = Math.max(1, parseInt(val) || 1);
+            calcularYRenderizarTotales();
+        }
+    }
+
+    // Calcula de forma ligera los cambios sin redibujar el DOM completo (evita perder foco del input)
+    function updateDetallePrecio(tempId, val) {
+        const item = detallesCotizacion.find(i => i.temp_id === parseFloat(tempId));
+        if (item) {
+            item.precio = Math.max(0.01, parseFloat(val) || 0.01);
+            calcularYRenderizarTotales();
+        }
+    }
+
+    function updateDetalleCosto(tempId, val) {
+        const item = detallesCotizacion.find(i => i.temp_id === parseFloat(tempId));
+        if (item) {
+            item.costo = Math.max(0, parseFloat(val) || 0);
+            calcularYRenderizarTotales();
+        }
+    }
+
+    function calcularYRenderizarTotales() {
+        let total = 0;
+        let totalCosto = 0;
+        detallesCotizacion.forEach(item => {
+            const subtotal = item.cantidad * item.precio;
+            total += subtotal;
+            totalCosto += item.cantidad * item.costo;
+            const subtotalEl = document.getElementById(`subtotal-${item.temp_id}`);
+            if (subtotalEl) {
+                subtotalEl.textContent = subtotal.toFixed(2);
+            }
+        });
+        document.getElementById('totalCotizacionDisplay').textContent = total.toFixed(2);
+        document.getElementById('totalCostoDisplay').textContent = totalCosto.toFixed(2);
+        document.getElementById('margenDisplay').textContent = (total - totalCosto).toFixed(2);
+    }
+
+    // --- RENDERIZADO DEL CONTENEDOR DE PRODUCTOS ---
+    function renderDetalles() {
+        const container = document.getElementById('detalleCotizacionContainer');
+        let total = 0;
+        let totalCosto = 0;
+        let htmlContent = '';
+
+        if (detallesCotizacion.length === 0) {
+            htmlContent = '<div class="alert alert-warning text-center my-3"><i class="fas fa-exclamation-triangle me-2"></i>{{ t("msg_cot_vacia") }}</div>';
+        } else {
+            detallesCotizacion.forEach((item) => {
+                const subtotal = item.cantidad * item.precio;
+                total += subtotal;
+                totalCosto += item.cantidad * item.costo;
+
+                htmlContent += `
+                    <div class="detalle-row row align-items-center g-2" id="row-${item.temp_id}">
+                        <div class="col-md-2 col-12 fw-bold text-dark">
+                            <span class="d-md-none text-muted small d-block fw-normal">{{ t('inv_col_nombre') }}:</span>
+                            ${item.nombre}
+                        </div>
+
+                        <div class="col-md-2 col-12">
+                            <span class="d-md-none text-muted small d-block mb-1">{{ t('inv_col_desc') }}:</span>
+                            <input type="text" class="form-control form-control-sm"
+                                   value="${item.descripcion}"
+                                   placeholder="{{ t('inv_col_desc') }}..."
+                                   onchange="updateDetalleDescripcion('${item.temp_id}', this.value)">
+                        </div>
+
+                        <div class="col-md-1 col-4">
+                            <span class="d-md-none text-muted small d-block mb-1 text-start">{{ t('inv_col_cant') }}:</span>
+                            <input type="number" class="form-control form-control-sm text-center"
+                                   value="${item.cantidad}" min="1"
+                                   oninput="updateDetalleCantidad('${item.temp_id}', this.value)">
+                        </div>
+
+                        <div class="col-md-2 col-6">
+                            <span class="d-md-none text-muted small d-block mb-1">Costo unitario:</span>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">S/.</span>
+                                <input type="number" class="form-control"
+                                       value="${item.costo.toFixed(2)}" step="0.01" min="0"
+                                       oninput="updateDetalleCosto('${item.temp_id}', this.value)">
+                            </div>
+                        </div>
+
+                        <div class="col-md-2 col-6">
+                            <span class="d-md-none text-muted small d-block mb-1">{{ t('inv_col_precio') }} unitario:</span>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">S/.</span>
+                                <input type="number" class="form-control"
+                                       value="${item.precio.toFixed(2)}" step="0.01" min="0.01"
+                                       oninput="updateDetallePrecio('${item.temp_id}', this.value)">
+                            </div>
+                        </div>
+
+                        <div class="col-md-2 col-8 text-md-end fw-bold text-primary mt-2 mt-md-0">
+                            <span class="d-md-none text-muted small d-inline fw-normal me-1">{{ t('col_subtotal') }}:</span>
+                            S/. <span id="subtotal-${item.temp_id}">${subtotal.toFixed(2)}</span>
+                        </div>
+
+                        <div class="col-md-1 col-4 text-end mt-2 mt-md-0">
+                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                    onclick="eliminarDetalle('${item.temp_id}')" title="{{ t('btn_eliminar') }}">
+                                <i class="fa fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        container.innerHTML = htmlContent;
+        document.getElementById('totalCotizacionDisplay').textContent = total.toFixed(2);
+        document.getElementById('totalCostoDisplay').textContent = totalCosto.toFixed(2);
+        document.getElementById('margenDisplay').textContent = (total - totalCosto).toFixed(2);
+    }
+
+    // --- LÓGICA AGREGAR ITEM (INCREMENTA SI YA EXISTE) ---
+    function agregarProductoAlDetalle() {
+        const select = document.getElementById('producto_select');
+        const selectedOption = select.options[select.selectedIndex];
+        const productoId = selectedOption.value;
+        const nombre = selectedOption.getAttribute('data-nombre');
+        const cantidad = parseInt(document.getElementById('cantidad_input').value);
+        const precio = parseFloat(document.getElementById('precio_input').value);
+        const costo = parseFloat(document.getElementById('costo_input').value) || 0;
+        const descripcion = document.getElementById('descripcion_input').value;
+
+        if (!productoId || isNaN(cantidad) || cantidad <= 0 || isNaN(precio)) {
+            alert('{{ t("msg_datos_inv") }}'); 
+            return;
+        }
+
+        const productoExistente = detallesCotizacion.find(p => p.producto_id === parseInt(productoId));
+
+        if (productoExistente) {
+            productoExistente.cantidad += cantidad;
+        } else {
+            detallesCotizacion.push({
+                temp_id: Date.now() + Math.random(),
+                producto_id: parseInt(productoId),
+                nombre: nombre,
+                descripcion: descripcion,
+                cantidad: cantidad,
+                precio: precio,
+                costo: costo
+            });
+        }
+
+        renderDetalles();
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('agregarProductoModal'));
+        modal.hide();
+        limpiarModal();
+    }
+
+    function eliminarDetalle(tempId) {
+        if (confirm('{{ t("msg_eliminar_item") }}')) {
+            detallesCotizacion = detallesCotizacion.filter(item => item.temp_id !== parseFloat(tempId));
+            renderDetalles();
+        }
+    }
+
+    function limpiarModal() {
+        document.getElementById('producto_select').value = '';
+        document.getElementById('cantidad_input').value = 1;
+        document.getElementById('precio_input').value = '';
+        document.getElementById('costo_input').value = '';
+        document.getElementById('descripcion_input').value = '';
+    }
+
+    // Autocompletado del Modal al cambiar opción
+    document.getElementById('producto_select').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const precio = selectedOption.getAttribute('data-precio');
+        const desc = selectedOption.getAttribute('data-desc');
+        const costo = selectedOption.getAttribute('data-costo');
+
+        document.getElementById('precio_input').value = precio ? parseFloat(precio).toFixed(2) : '';
+        document.getElementById('descripcion_input').value = desc || '';
+        document.getElementById('costo_input').value = costo ? parseFloat(costo).toFixed(2) : '0.00';
+    });
+
+    // --- VALIDACIÓN Y ENVÍO DEL FORMULARIO ---
+    document.getElementById('editarCotizacionForm').addEventListener('submit', function(event) {
+        const form = this;
+        const detallesFinales = detallesCotizacion.map(item => ({
+            id: item.producto_id,
+            cantidad: item.cantidad,
+            precio: item.precio,
+            costo: item.costo,
+            descripcion: item.descripcion
+        }));
+
+        document.getElementById('productos_seleccionados').value = JSON.stringify(detallesFinales);
+
+        if (detallesFinales.length === 0) {
+            alert('{{ t("msg_cot_vacia") }}');
+            event.preventDefault();
+            return;
+        }
+
+        const estado = document.getElementById('estado').value;
+        const pago = document.getElementById('tipo_pago');
+        pago.classList.remove('is-invalid');
+
+        if (estado === 'Pagada' && !pago.value) {
+            event.preventDefault();
+            event.stopPropagation();
+            alert('{{ t("msg_validar_pago") }}');
+            pago.classList.add('is-invalid');
+            pago.focus();
+        }
+
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        form.classList.add('was-validated');
+    });
+
+    document.addEventListener('DOMContentLoaded', renderDetalles);
+</script>
+{% endblock %}

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('login_titulo') }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Aseguramos que el contenedor ocupe la altura mínima de la vista y centre el formulario */
+    .login-wrapper {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        /* Usar el fondo del contenido principal para esta área */
+        background-color: var(--main-content-bg);
+    }
+
+    /* Estilo de la tarjeta del login */
+    .login-container {
+        max-width: 450px;
+        width: 100%;
+        padding: 40px 30px;
+        background-color: white; /* Fondo blanco para contraste */
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+        border-top: 5px solid var(--primary-dark); /* Línea superior temática */
+    }
+
+    .login-container h1 {
+        /* Color del título con el color oscuro del tema */
+        color: var(--primary-dark);
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 30px;
+        text-align: center;
+    }
+
+    /* Campos de formulario */
+    .form-control {
+        border-radius: 8px;
+        padding: 12px 15px;
+    }
+    .mb-3 label {
+        font-weight: 600;
+        color: var(--primary-dark);
+        margin-bottom: 6px;
+    }
+
+    /* Botón de inicio de sesión (Alineado con el tema principal) */
+    .login-button {
+        width: 100%;
+        border-radius: 8px;
+        padding: 12px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin-top: 20px;
+        cursor: pointer;
+        /* Colores del botón primario */
+        background-color: var(--primary-dark);
+        border: 2px solid var(--primary-dark);
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .login-button:hover {
+        background-color: hsl(302, 40%, 55%); /* Un poco más claro en hover */
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px hsla(302, 40%, 40%, 0.4);
+    }
+
+    .login-button i {
+        margin-right: 8px;
+    }
+
+    /* Enlace de registro */
+    .register-link {
+        margin-top: 20px;
+        text-align: center;
+        font-size: 0.95rem;
+        color: #6c757d;
+    }
+
+    .register-link a {
+        color: var(--primary-dark);
+        font-weight: 700;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+    .register-link a:hover {
+        color: hsl(302, 40%, 55%);
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-wrapper">
+    <div class="login-container">
+        <h1><i class="fas fa-lock me-2"></i>{{ t('login_titulo') }}</h1>
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="mb-3">
+                <label for="identificador">DNI</label>
+                <input type="text" class="form-control" id="identificador" name="identificador"
+                       autocomplete="username" required>
+                <div class="form-text">Las cuentas anteriores también pueden ingresar con su correo.</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="password">{{ t('reg_pass') }}</label>
+                <div class="input-group">
+                    <input type="password" class="form-control" id="password" name="password"
+                           autocomplete="current-password" required>
+                    <button class="btn btn-outline-secondary" type="button" data-toggle-password
+                            data-target="#password" aria-label="Mostrar contraseña" aria-pressed="false"
+                            title="Mostrar contraseña">
+                        <i class="fas fa-eye" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="login-button">
+                <i class="fas fa-sign-in-alt me-1"></i>{{ t('login_btn') }}
+            </button>
+
+            <p class="register-link">¿Eres trabajador y aún no tienes cuenta? Solicita el acceso al administrador del sistema.</p>
+        </form>
+    </div>
+</div>
+{% endblock %}

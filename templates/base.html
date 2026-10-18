@@ -1,0 +1,200 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>Donglai ERP - {% block title %}{% endblock %}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=turquesa-20261018">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <div class="dashboard-layout">
+
+        <aside class="sidebar" id="sidebarMenu">
+            <div class="brand-container">
+                <a href="{{ url_for('menu_inicio') }}">
+                    <img src="{{ url_for('static', filename='images/donglai.png') }}" alt="Logo Donglai" class="brand-logo">
+                </a>
+            </div>
+
+            <ul class="sidebar-menu">
+                {% if current_user.is_authenticated %}
+                <li>
+                    <a href="{{ url_for('menu_inicio') }}" class="sidebar-link {% if request.endpoint == 'menu_inicio' %}active{% endif %}">
+                        <i class="fas fa-chart-pie"></i> {{ t('menu_dashboard') }}
+                    </a>
+                </li>
+                {% if current_user.rol in ['admin', 'inventario'] %}
+                <li>
+                    <a href="{{ url_for('listar_inventario') }}" class="sidebar-link {% if request.endpoint == 'listar_inventario' %}active{% endif %}">
+                        <i class="fas fa-boxes-stacked"></i> {{ t('menu_inventario') }}
+                    </a>
+                </li>
+                {% endif %}
+                {% if current_user.rol in ['admin', 'ventas', 'usuario'] %}
+                <li>
+                    <a href="{{ url_for('listar_cotizaciones') }}" class="sidebar-link {% if request.endpoint == 'listar_cotizaciones' %}active{% endif %}">
+                        <i class="fas fa-file-invoice-dollar"></i> {{ t('menu_cotizaciones') }}
+                    </a>
+                </li>
+                {% endif %}
+                {% if current_user.rol in ['admin', 'ventas', 'caja', 'usuario'] %}
+                <li>
+                    <a href="{{ url_for('listar_pagos') }}" class="sidebar-link {% if request.endpoint == 'listar_pagos' %}active{% endif %}">
+                        <i class="fas fa-money-bill-transfer"></i> Pagos
+                    </a>
+                </li>
+                {% endif %}
+                {% if current_user.rol in ['admin', 'caja', 'usuario'] %}
+                <li>
+                    <a href="{{ url_for('cierre_caja') }}" class="sidebar-link {% if request.endpoint in ['cierre_caja', 'historial_cierre_caja', 'editar_cierre_caja'] %}active{% endif %}">
+                        <i class="fas fa-cash-register"></i> {{ t('menu_cierre_caja') }}
+                    </a>
+                </li>
+                {% endif %}
+                {% if current_user.rol == 'admin' %}
+                <li>
+                    <a href="{{ url_for('administrar_usuarios') }}" class="sidebar-link {% if request.endpoint == 'administrar_usuarios' %}active{% endif %}">
+                        <i class="fas fa-users-cog"></i> Administrar usuarios
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('administrar_razones_sociales') }}" class="sidebar-link {% if request.endpoint == 'administrar_razones_sociales' %}active{% endif %}">
+                        <i class="fas fa-building"></i> Razones sociales
+                    </a>
+                </li>
+                {% endif %}
+                <li class="mt-4">
+                    <a href="{{ url_for('logout') }}" class="sidebar-link text-danger-hover">
+                        <i class="fas fa-arrow-right-from-bracket"></i> {{ t('menu_cerrar_sesion') }}
+                    </a>
+                </li>
+                {% else %}
+                <li>
+                    <a href="{{ url_for('login') }}" class="sidebar-link">
+                        <i class="fas fa-key"></i> {{ t('menu_iniciar_sesion') }}
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+
+            <div class="sidebar-footer-banner mt-auto d-none d-lg-block">
+                <p><strong>Donglai</strong><br><small class="text-muted" style="color: rgba(255,255,255,0.4) !important;">Soluciones que iluminan tus proyectos.</small></p>
+            </div>
+        </aside>
+
+        <div class="content-area w-100">
+
+            <nav class="navbar navbar-expand-lg bg-white px-4 border-bottom" style="min-height: 70px;">
+                <div class="container-fluid p-0">
+                    <button class="btn p-0 border-0 d-lg-none me-3" style="min-width: auto; box-shadow: none;" onclick="toggleSidebar()">
+                        <i class="fas fa-bars text-dark" style="font-size: 1.3rem;"></i>
+                    </button>
+                    
+                    <a class="navbar-brand d-lg-none fw-bold text-dark" href="{{ url_for('menu_inicio') }}">
+                         Donglai ERP
+                    </a>
+
+                    <div class="ms-auto d-flex align-items-center gap-3">
+                        {% if current_user.is_authenticated %}
+                        <div class="dropdown border-start ps-3">
+                            <a class="nav-link dropdown-toggle text-dark fw-semibold d-flex align-items-center gap-2" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                    <i class="fas fa-user text-secondary" style="font-size: 0.9rem;"></i>
+                                </div>
+                                <span class="d-none d-sm-inline">{{ current_user.nombre if current_user.nombre else 'Usuario' }}</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2" aria-labelledby="navbarDropdown">
+                                <li>
+                                    <a class="dropdown-item text-danger" href="{{ url_for('logout') }}">
+                                        <i class="fas fa-sign-out-alt me-2"></i>{{ t('menu_cerrar_sesion') }}
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </nav>
+
+            <main class="main-content">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm border-0 mb-4" role="alert" {% if 'ContraseÃ±a temporal' in message %}data-persist="true"{% endif %}>
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fas {% if category == 'success' %}fa-circle-check{% else %}fa-circle-exclamation{% endif %}"></i>
+                                    <span>{{ message }}</span>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </main>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <script>
+        (function() {
+            const preference = window.matchMedia('(prefers-color-scheme: dark)');
+            const applyTheme = () => document.documentElement.setAttribute('data-bs-theme', preference.matches ? 'dark' : 'light');
+            applyTheme();
+            preference.addEventListener?.('change', applyTheme);
+        })();
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebarMenu');
+            sidebar.classList.toggle('show');
+        }
+
+        // Auto-cerrar alertas en 5 segundos para mantener el dashboard limpio
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-toggle-password]').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    const input = document.querySelector(button.dataset.target);
+                    const icon = button.querySelector('i');
+                    if (!input) return;
+
+                    const mostrar = input.type === 'password';
+                    input.type = mostrar ? 'text' : 'password';
+                    button.setAttribute('aria-pressed', String(mostrar));
+                    button.setAttribute('aria-label', mostrar ? 'Ocultar contraseÃ±a' : 'Mostrar contraseÃ±a');
+                    button.title = mostrar ? 'Ocultar contraseÃ±a' : 'Mostrar contraseÃ±a';
+                    icon.classList.toggle('fa-eye', !mostrar);
+                    icon.classList.toggle('fa-eye-slash', mostrar);
+                });
+            });
+
+            const alerts = document.querySelectorAll('.alert:not([data-persist])');
+            alerts.forEach(function(alert) {
+                setTimeout(function() {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 5000);
+            });
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+

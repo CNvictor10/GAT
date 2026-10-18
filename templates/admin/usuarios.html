@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}Administrar usuarios{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Administrar usuarios</h1>
+            <p class="text-muted mb-0">Crea cuentas, asigna áreas y administra los accesos.</p>
+        </div>
+        <a href="{{ url_for('menu_inicio') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver al inicio
+        </a>
+    </div>
+
+    <div class="alert alert-info" role="note">
+        Cada trabajador solo puede entrar al área de su rol. Las cuentas nuevas y los restablecimientos usan una clave temporal que debe cambiarse al iniciar sesión.
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5">Crear cuenta de trabajador</h2>
+            <form method="POST" action="{{ url_for('crear_usuario_trabajador') }}" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label" for="nuevo-nombre">Nombre completo</label>
+                    <input class="form-control" id="nuevo-nombre" name="nombre" maxlength="100" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="nuevo-dni">DNI</label>
+                    <input class="form-control" id="nuevo-dni" name="dni" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="nuevo-rol">Área / rol</label>
+                    <select class="form-select" id="nuevo-rol" name="rol">
+                        <option value="trabajador">Trabajador sin área asignada</option>
+                        <option value="inventario">Inventario / almacén</option>
+                        <option value="ventas">Ventas / cotizaciones</option>
+                        <option value="caja">Caja / cierres</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button class="btn btn-primary" type="submit">Crear cuenta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-responsive bg-white rounded shadow-sm">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Nombre</th>
+                    <th>DNI</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Acceso</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for usuario in usuarios %}
+                <tr>
+                    <td>
+                        <strong>{{ usuario['nombre'] }}</strong>
+                        {% if usuario['id']|string == current_user.id|string %}<span class="badge text-bg-primary ms-1">Tú</span>{% endif %}
+                        {% if usuario['debe_cambiar_password'] %}<div class="small text-warning-emphasis">Debe cambiar su contraseña</div>{% endif %}
+                    </td>
+                    <td>{{ usuario['dni'] or usuario['email'] or '—' }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('cambiar_rol_usuario', usuario_id=usuario['id']) }}" class="d-flex gap-2">
+                            <select name="rol" class="form-select form-select-sm" aria-label="Rol de {{ usuario['nombre'] }}">
+                                <option value="trabajador" {% if usuario['rol'] in ['usuario', 'trabajador'] %}selected{% endif %}>Trabajador general</option>
+                                <option value="inventario" {% if usuario['rol'] == 'inventario' %}selected{% endif %}>Inventario / almacén</option>
+                                <option value="ventas" {% if usuario['rol'] == 'ventas' %}selected{% endif %}>Ventas / cotizaciones</option>
+                                <option value="caja" {% if usuario['rol'] == 'caja' %}selected{% endif %}>Caja / cierres</option>
+                                <option value="admin" {% if usuario['rol'] == 'admin' %}selected{% endif %}>Administrador</option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-primary" type="submit">Guardar</button>
+                        </form>
+                    </td>
+                    <td>
+                        {% if usuario['activo'] %}<span class="badge text-bg-success">Activa</span>
+                        {% else %}<span class="badge text-bg-secondary">Desactivada</span>{% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex flex-wrap gap-2">
+                            <form method="POST" action="{{ url_for('cambiar_estado_usuario', usuario_id=usuario['id']) }}">
+                                {% if usuario['activo'] %}
+                                    <input type="hidden" name="activo" value="0">
+                                    <button class="btn btn-sm btn-outline-warning" type="submit" {% if usuario['id']|string == current_user.id|string %}disabled{% endif %}>Desactivar</button>
+                                {% else %}
+                                    <input type="hidden" name="activo" value="1">
+                                    <button class="btn btn-sm btn-outline-success" type="submit">Activar</button>
+                                {% endif %}
+                            </form>
+                            <form method="POST" action="{{ url_for('restablecer_password_usuario', usuario_id=usuario['id']) }}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Restablecer contraseña</button>
+                            </form>
+                            {% if usuario['id']|string != current_user.id|string %}
+                            <form method="POST" action="{{ url_for('eliminar_usuario', usuario_id=usuario['id']) }}"
+                                  onsubmit="return confirm('?Eliminar esta cuenta? Si tiene historial, tendr?s que desactivarla.');">
+                                <button class="btn btn-sm btn-danger" type="submit">Eliminar</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center py-4">No hay usuarios registrados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

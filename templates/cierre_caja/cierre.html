@@ -1,0 +1,626 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}{{ t('caja_titulo') }} - Donglai{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Tarjetas de SecciÃ³n unificadas con el ERP */
+    .section-card {
+        background-color: var(--card-bg, #ffffff);
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        transition: box-shadow 0.2s;
+    }
+    
+    /* Input Group unificado */
+    .custom-input-group {
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid var(--input-border, #cbd5e1);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .custom-input-group .form-control, 
+    .custom-input-group .form-select, 
+    .custom-input-group .input-group-text {
+        border: none !important;
+    }
+
+    /* Tabla de Flujos */
+    .table th {
+        font-weight: 700;
+        color: var(--text-muted, #64748b);
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+    }
+
+    /* Estados dinÃ¡micos de Cuadratura */
+    .cuadratura-exacta {
+        color: var(--text-color, #1e293b) !important;
+        background-color: #f8fafc !important;
+        border-color: #cbd5e1 !important;
+    }
+    .cuadratura-sobrante {
+        color: #15803d !important;
+        background-color: #f0fdf4 !important;
+        border-color: #bbf7d0 !important;
+    }
+    .cuadratura-faltante {
+        color: #b91c1c !important;
+        background-color: #fef2f2 !important;
+        border-color: #fecaca !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{# ---------------------------------------------------------------------------------- #}
+{# --- CÃLCULO DE CONSOLIDACIÃ“N DE DATOS DESDE FLASK/DB --- #}
+{% set total_cot = total_ventas | default(0.00) %}
+{% set total_cogs = total_cogs_dia | default(0.00) %}
+{% set ganancia_bruta = total_cot - total_cogs %}
+
+{# 1. Calcular efectivo de cotizaciones aprobado #}
+{% set efectivo_cotizaciones_db = desglose_ventas.Efectivo | default(0.00) %}
+
+{# 2. Calcular otros medios (Total - Efectivo) #}
+{% set otros_medios_cotizaciones_db = total_cot - efectivo_cotizaciones_db %}
+{# ---------------------------------------------------------------------------------- #}
+
+<div class="top-header mb-4">
+    <div>
+        <h1 class="fw-bold text-dark m-0">
+            <i class="fas fa-cash-register text-primary me-2"></i>{{ t('caja_titulo') }}
+        </h1>
+        <p class="text-muted small m-0">Controla ventas manuales, consolida ingresos del dÃ­a y efectÃºa arqueos.</p>
+    </div>
+</div>
+
+{% if cierre_pendiente %}
+<div class="alert alert-warning" role="alert">
+    <strong>Cierre pendiente:</strong> la caja del {{ fecha_hoy }} sigue abierta. El sistema no la cerrÃ³ automÃ¡ticamente porque requiere el conteo fÃ­sico; registra el efectivo contado y completa el cierre manual.
+</div>
+{% elif cierre_ya_registrado %}
+<div class="alert alert-success" role="status">La caja del {{ fecha_hoy }} ya tiene un cierre registrado.</div>
+{% endif %}
+
+<div class="row g-4">
+
+    {# COLUMNA IZQUIERDA: MOVIMIENTOS Y VENTAS MANUALES #}
+    <div class="col-lg-6">
+        <div class="section-card h-100 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="h6 fw-bold text-dark m-0">
+                    <i class="fas fa-plus-circle text-primary me-2"></i>Nueva Venta Manual
+                </h2>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('menu_inicio') }}" class="btn btn-sm btn-light border text-muted">
+                        <i class="fas fa-arrow-left me-1"></i> Dashboard
+                    </a>
+                </div>
+            </div>
+
+            {# REGISTRO DE VENTA RÃPIDA #}
+            <div class="input-group custom-input-group mb-4">
+                <span class="input-group-text bg-light fw-semibold text-muted">S/</span>
+                <input type="number" id="monto_venta" class="form-control py-2" step="0.01" placeholder="{{ t('inv_col_precio') }}" required>
+                <select id="tipo_pago" class="form-select bg-light" style="max-width: 140px;" required>
+                    <option value="Efectivo" selected>Efectivo</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                    <option value="Yape">Yape</option>
+                    <option value="Plin">Plin</option>
+                    <option value="Transferencia">Transferencia</option>
+                </select>
+                <button id="agregar-venta" class="btn btn-primary px-4 fw-bold" type="button">
+                    {{ t('btn_guardar') }}
+                </button>
+            </div>
+
+            <h3 class="h6 fw-bold text-dark mb-3">
+                <i class="fas fa-list-ul text-secondary me-2"></i>Flujo Diario Consolidado
+            </h3>
+            
+            <div class="table-responsive flex-grow-1">
+                <table class="table table-hover align-middle m-0" id="tabla-ventas" style="font-size: 0.85rem;">
+                    <thead class="table-light" style="--bs-table-bg: #f8fafc;">
+                        <tr>
+                            <th class="ps-3 py-2.5">Monto</th>
+                            <th class="py-2.5">Detalle / Origen</th>
+                            <th class="py-2.5 text-center">Hora</th>
+                            <th class="pe-3 py-2.5 text-center">AcciÃ³n</th>
+                        </tr>
+                    </thead>
+
+                    {# MOVIMIENTOS AUTOMÃTICOS PROVENIENTES DEL ERP #}
+                    <tbody>
+                        {% if movimientos_db %}
+                            {% for mov in movimientos_db %}
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td class="ps-3 fw-bold text-dark js-db-monto" data-monto="{{ mov.ingreso_total | round(2) }}">S/ {{ "%.2f"|format(mov.ingreso_total) }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark border px-2 py-1 mb-0.5" style="font-size: 0.7rem; font-weight: 600;">{{ mov.tipo_pago }}</span>
+                                    <small class="d-block text-muted" style="font-size: 0.75rem;">
+                                        {{ mov.cliente_nombre }} (Cot #{{ mov.numero_cotizacion or mov.cot_id }})
+                                    </small>
+                                </td>
+                                <td class="text-center text-muted">{{ mov.fecha }}</td>
+                                <td class="pe-3 text-center">
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="font-size: 0.7rem;">
+                                        <i class="fas fa-sync-alt me-1"></i>ERP
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr class="d-none"><td colspan="4"></td></tr>
+                        {% endif %}
+                    </tbody>
+
+                    {# MOVIMIENTOS ADICIONALES INYECTADOS #}
+                    <tbody id="tbody-manual" class="table-group-divider"></tbody>
+
+                    <tfoot>
+                        <tr class="table-light" style="border-top: 2px solid var(--border-color);">
+                            <th colspan="3" class="text-end text-uppercase text-muted fw-semibold ps-3 py-3">{{ t('cot_col_total') }}:</th>
+                            <th id="total_general_resumen" class="pe-3 text-end fs-6 fw-bold text-primary py-3">S/ 0.00</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {# COLUMNA DERECHA: CONCILIACIÃ“N, METRICAS Y ARQUEO #}
+    <div class="col-lg-6">
+        <div class="section-card">
+            <h2 class="h6 fw-bold text-dark mb-4"><i class="fas fa-chart-pie text-primary me-2"></i>Rendimiento del Sistema</h2>
+
+            {# RENDER CORPORATIVO DE MARGENES #}
+            <div class="p-3 mb-4 rounded-3" style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted mb-1">Ventas Aprobadas</label>
+                        <input type="text" class="form-control text-primary fw-bold bg-white js-initial-display" style="border-color: #cbd5e1;" value="S/ {{ total_cot | round(2) }}" readonly data-value="{{ total_cot | round(2) }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted mb-1">Costo de Ventas (COGS)</label>
+                        <input type="text" id="cogs_display" class="form-control text-danger fw-bold bg-white js-initial-display" style="border-color: #cbd5e1;" value="S/ {{ total_cogs | round(2) }}" readonly data-value="{{ total_cogs | round(2) }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold text-muted mb-1">Utilidad Bruta Estimada</label>
+                        <input type="text" class="form-control text-success fw-bold bg-white js-initial-display" style="border-color: #cbd5e1;" value="S/ {{ ganancia_bruta | round(2) }}" readonly data-value="{{ ganancia_bruta | round(2) }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-3 mb-4 rounded-3" style="background-color: #f0fdfa; border: 1px solid #99f6e4;">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h3 class="h6 fw-bold text-dark m-0"><i class="fas fa-money-bill-transfer text-primary me-2"></i>Resumen por medio de pago</h3>
+                    <span class="small text-muted">Cobrado hoy</span>
+                </div>
+                <div id="resumen-medios-pago" class="d-flex flex-wrap gap-2"></div>
+                <div class="d-flex justify-content-between border-top mt-3 pt-2 fw-bold">
+                    <span>Total recibido</span><span id="total-recibido-display" class="text-primary">S/ 0.00</span>
+                </div>
+            </div>
+
+            <input type="hidden" id="desglose_cotizaciones_db" value='{{ desglose_ventas | tojson }}'>
+            {% if not cierre_ya_registrado %}
+            <form action="{{ url_for('cierre_caja') }}" method="post" class="m-0">
+
+                {# CAJA CHICA / EFECTIVO FÃSICO EXTERNO #}
+                <h3 class="h6 fw-bold text-dark mb-3"><i class="fas fa-sliders text-secondary me-2"></i>Ajustes de Flujo FÃ­sico</h3>
+                <div class="row g-3 mb-4 p-3 rounded-3" style="background-color: #f1f5f9;">
+                    <div class="col-md-4">
+                        <label for="monto_apertura" class="form-label small fw-bold text-dark mb-1"><i class="fas fa-door-open me-1 text-primary"></i>Monto inicial de caja (S/)</label>
+                        <input type="number" id="monto_apertura" name="monto_apertura" class="form-control" step="0.01" value="0.00" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="ingresos_extra" class="form-label small fw-semibold text-success mb-1">{{ t('caja_ingresos') }} (S/)</label>
+                        <input type="number" id="ingresos_extra" name="ingresos_extra" class="form-control text-success fw-semibold" step="0.01" value="0.00" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="egresos" class="form-label small fw-semibold text-danger mb-1">{{ t('caja_egresos') }} (S/)</label>
+                        <input type="number" id="egresos" name="egresos" class="form-control text-danger fw-semibold" step="0.01" value="0.00" required>
+                    </div>
+                </div>
+
+                {# METAS TEÃ“RICAS CALCULADAS #}
+                <h3 class="h6 fw-bold text-dark mb-3"><i class="fas fa-calculator text-secondary me-2"></i>Metas de ConciliaciÃ³n</h3>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted mb-1">Ventas en Efectivo Esperadas</label>
+                        <input type="text" id="efectivo_teorico_ventas_display" class="form-control bg-light fw-bold text-dark" value="S/ 0.00" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted mb-1">Bancos y Medios Digitales</label>
+                        <input type="text" id="total_otros_medios_display" class="form-control bg-light text-muted js-initial-display" value="S/ {{ otros_medios_cotizaciones_db | round(2) }}" readonly data-value="{{ otros_medios_cotizaciones_db | round(2) }}">
+                    </div>
+                </div>
+
+                <div class="p-3 mb-4 rounded-3 text-center" style="background-color: #fffbeb; border: 1px solid #fde68a;">
+                    <label class="fw-semibold small d-block mb-1" style="color: #92400e;">
+                        <i class="fas fa-coins me-1"></i> {{ t('caja_teorico') }} (Total Neto Efectivo)
+                    </label>
+                    <input type="text" id="efectivo_teorico_final_display" class="form-control bg-transparent border-0 text-center fw-bold fs-3 p-0" value="S/ 0.00" readonly style="color: #92400e; pointer-events: none;">
+                </div>
+
+                {# INPUT CONTABLE DE ARQUEO FÃSICO #}
+                <h3 class="h6 fw-bold text-dark mb-3"><i class="fas fa-hand-holding-dollar text-secondary me-2"></i>Arqueo Manual</h3>
+                <div class="mb-3">
+                    <label for="efectivo_en_caja" class="form-label small fw-bold text-dark mb-1">ðŸ’µ {{ t('caja_real') }} (Conteo FÃ­sico Real)</label>
+                    <input type="number" id="efectivo_en_caja" name="efectivo_en_caja" class="form-control form-control-lg border-2 fw-bold text-primary" step="0.01" value="0.00" required style="font-size: 1.4rem; border-radius: 8px;">
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label small fw-semibold text-muted mb-1">Cuadratura de Caja (Diferencia)</label>
+                    <input type="text" id="diferencia" name="diferencia" class="form-control form-control-lg fw-bold border-2 text-center" value="S/ 0.00" readonly style="font-size: 1.2rem; border-radius: 8px;">
+                    <input type="hidden" id="diferencia_efectivo_hidden" name="diferencia_efectivo_hidden" value="0.00">
+                </div>
+
+                {# HIDDEN TARGETS FOR BACKEND PROCESSING #}
+                <input type="hidden" id="diferencia_total" name="diferencia_total" value="0.00">
+                <input type="hidden" id="diferencia_total_hidden" name="diferencia_total_hidden" value="0.00">
+                <input type="hidden" id="efectivo_cotizaciones_db" value="{{ efectivo_cotizaciones_db | round(2) }}">
+                <input type="hidden" id="otros_medios_cotizaciones_db" value="{{ otros_medios_cotizaciones_db | round(2) }}">
+                <input type="hidden" id="total_cotizaciones_db" value="{{ total_cot | round(2) }}">
+                <input type="hidden" id="cogs_registrado_hidden" name="cogs_registrado_hidden" value="{{ total_cogs | round(2) }}">
+                <input type="hidden" id="desglose_pagos_json" name="desglose_pagos_json" value="{}">
+                <input type="hidden" id="total_ventas_teorico" name="total_ventas_teorico" value="0.00">
+                <input type="hidden" id="efectivo_teorico_ventas" name="efectivo_teorico_ventas" value="0.00">
+                <input type="hidden" id="otros_medios_teoricos" name="otros_medios_teoricos" value="0.00">
+                <input type="hidden" id="efectivo_teorico_final" name="efectivo_teorico_final" value="0.00">
+                <input type="hidden" id="cierre_total_dia" name="cierre_total_dia" value="0.00">
+
+                <div class="mb-4">
+                    <label for="observaciones" class="form-label small fw-semibold text-muted mb-1">{{ t('caja_obs') }}</label>
+                    <textarea id="observaciones" name="observaciones" class="form-control" rows="2" placeholder="Detalles de descuadres, notas de turno o motivos de diferencias..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2.5 fw-bold shadow-sm" style="border-radius: 8px;">
+                    <i class="fas fa-lock me-2"></i>{{ t('caja_btn_cerrar') }}
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<div class="section-card mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="h6 fw-bold m-0"><i class="fas fa-clock-rotate-left text-primary me-2"></i>Cierres de caja</h2>
+            <small class="text-muted">Días con cierre registrado y sus cotizaciones cobradas.</small>
+        </div>
+    </div>
+    <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+        <thead><tr><th>N.º</th><th>Fecha de cierre</th><th>Total vendido</th><th>Diferencia</th><th>Responsable</th><th class="text-end">Detalle</th></tr></thead>
+        <tbody>{% for item in cierres_recientes %}<tr>
+            <td class="fw-semibold">#{{ item.id }}</td>
+            <td>{{ item.fecha }}</td><td>S/ {{ '%.2f'|format(item.total_ventas or 0) }}</td>
+            <td>S/ {{ '%.2f'|format(item.diferencia or 0) }}</td><td>{{ item.nombre }}</td>
+            <td class="text-end text-nowrap">
+                <button type="button" class="btn btn-sm btn-outline-primary btn-detalle-cierre" data-bs-toggle="modal" data-bs-target="#detalleCierreModal" data-id="{{ item.id }}" data-fecha="{{ item.fecha }}" data-cotizaciones='{{ item.cotizaciones_dia | tojson | safe }}'>
+                    <i class="fas fa-list-ul me-1"></i>Detalle
+                </button>
+                <a class="btn btn-sm btn-light border ms-1" href="{{ url_for('imprimir_cierre_caja', cierre_id=item.id) }}" title="Descargar cierre PDF"><i class="fas fa-file-pdf text-danger"></i></a>
+            </td>
+        </tr>{% else %}<tr><td colspan="6" class="text-center text-muted">Todavía no hay cierres registrados.</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+
+<div class="modal fade" id="detalleCierreModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content border-0 shadow">
+        <div class="modal-header text-white" style="background: var(--sidebar-bg);">
+            <div><h2 class="modal-title h5 fw-bold mb-1">Cotizaciones del cierre #<span id="detalleCierreId"></span></h2><div class="small text-white-50">Fecha: <span id="detalleCierreFecha"></span></div></div>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body p-0">
+            <div class="px-3 py-2 bg-light border-bottom small text-muted" id="detalleCierreConteo"></div>
+            <div class="table-responsive"><table class="table table-hover align-middle mb-0" style="min-width: 950px; font-size: .88rem;">
+                <thead class="table-light"><tr><th class="ps-3">Cotización / Cliente</th><th>Productos</th><th>Pagos del día</th><th class="text-end">Total cotización</th><th class="text-end">Cobrado ese día</th><th>Estado / Creador</th></tr></thead>
+                <tbody id="detalleCierreCotizaciones"></tbody>
+            </table></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+    </div></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, char => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[char]);
+    }
+
+    const detalleCierreModal = document.getElementById('detalleCierreModal');
+    if (detalleCierreModal) {
+        detalleCierreModal.addEventListener('show.bs.modal', event => {
+            const boton = event.relatedTarget;
+            const cotizaciones = JSON.parse(boton.dataset.cotizaciones || '[]');
+            document.getElementById('detalleCierreId').textContent = boton.dataset.id;
+            document.getElementById('detalleCierreFecha').textContent = boton.dataset.fecha;
+            document.getElementById('detalleCierreConteo').textContent = `${cotizaciones.length} cotización(es) con cobros en este cierre`;
+            const tbody = document.getElementById('detalleCierreCotizaciones');
+            if (!cotizaciones.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No hubo cotizaciones cobradas durante este día.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = cotizaciones.map(cot => {
+                const productos = (cot.productos || []).map(producto =>
+                    `<div class="mb-1"><span class="fw-semibold">${escapeHtml(producto.nombre)}</span> <span class="text-muted">× ${escapeHtml(producto.cantidad)}</span><span class="d-block small text-muted">S/ ${formatCurrency(Number(producto.subtotal || 0))}</span></div>`
+                ).join('') || '<span class="text-muted">Sin productos</span>';
+                const pagos = (cot.pagos_dia || []).map(pago =>
+                    `<div class="mb-1"><span class="badge bg-light text-dark border">${escapeHtml(pago.medio)}</span> <strong>S/ ${formatCurrency(Number(pago.monto || 0))}</strong><span class="d-block small text-muted">${escapeHtml(pago.fecha || '')}</span></div>`
+                ).join('') || '<span class="text-muted">Sin pagos</span>';
+                return `<tr>
+                    <td class="ps-3"><strong class="text-primary">#${escapeHtml(cot.numero)}</strong><span class="d-block fw-semibold">${escapeHtml(cot.cliente)}</span><span class="small text-muted">${escapeHtml(cot.celular || '')}</span></td>
+                    <td>${productos}</td><td>${pagos}</td>
+                    <td class="text-end text-nowrap">S/ ${formatCurrency(Number(cot.total || 0))}</td>
+                    <td class="text-end text-nowrap fw-bold text-success">S/ ${formatCurrency(Number(cot.total_pagado_dia || 0))}</td>
+                    <td><span class="badge bg-light text-dark border">${escapeHtml(cot.estado || '')}</span><span class="d-block small text-muted mt-1">${escapeHtml(cot.creador || '')}</span></td>
+                </tr>`;
+            }).join('');
+        });
+    }
+
+    const STORAGE_KEY_VENTAS = 'ventasDiarias';
+    const STORAGE_KEY_APERTURA = 'montoApertura';
+    const STORAGE_KEY_INGRESOS = 'ingresosExtra';
+    const STORAGE_KEY_EGRESOS = 'egresos';
+    const STORAGE_KEY_ULTIMO_CIERRE = 'ultimoCierreGuardado';
+    const STORAGE_KEY_EFECTIVO_CAJA = 'efectivoCajaActual';
+    const MODOS_PAGO = ['Efectivo', 'Tarjeta', 'Yape', 'Plin', 'Transferencia'];
+
+    let ventasDiarias = JSON.parse(sessionStorage.getItem(STORAGE_KEY_VENTAS)) || [];
+    let totales = {};
+    let siguienteId = ventasDiarias.length > 0 ? Math.max(...ventasDiarias.map(v => v.id)) + 1 : 1;
+
+    MODOS_PAGO.forEach(modo => totales[modo] = 0);
+
+    const DOM = {
+        montoVentaInput: document.getElementById('monto_venta'),
+        tipoPagoSelect: document.getElementById('tipo_pago'),
+        agregarVentaBtn: document.getElementById('agregar-venta'),
+        tablaVentasManualBody: document.getElementById('tbody-manual'),
+        displayGeneralResumen: document.getElementById('total_general_resumen'),
+        montoAperturaInput: document.getElementById('monto_apertura'),
+        ingresosExtraInput: document.getElementById('ingresos_extra'),
+        egresosInput: document.getElementById('egresos'),
+        efectivoEnCajaInput: document.getElementById('efectivo_en_caja'),
+        cierreForm: document.querySelector("form"),
+        efectivoTeoricoVentasDisplay: document.getElementById('efectivo_teorico_ventas_display'),
+        totalOtrosMediosDisplay: document.getElementById('total_otros_medios_display'),
+        efectivoTeoricoFinalDisplay: document.getElementById('efectivo_teorico_final_display'),
+        diferenciaInput: document.getElementById('diferencia'),
+        desglosePagosJsonInput: document.getElementById('desglose_pagos_json'),
+        diferenciaEfectivoHiddenInput: document.getElementById('diferencia_efectivo_hidden'),
+        totalVentasTeoricoInput: document.getElementById('total_ventas_teorico'),
+        efectivoTeoricoVentasHiddenInput: document.getElementById('efectivo_teorico_ventas'),
+        otrosMediosTeoricosInput: document.getElementById('otros_medios_teoricos'),
+        efectivoTeoricoFinalHiddenInput: document.getElementById('efectivo_teorico_final'),
+        efectivoCotizacionesDB: document.getElementById('efectivo_cotizaciones_db'),
+        otrosMediosCotizacionesDB: document.getElementById('otros_medios_cotizaciones_db'),
+        totalCotizacionesDB: document.getElementById('total_cotizaciones_db'),
+        desgloseCotizacionesDB: document.getElementById('desglose_cotizaciones_db'),
+        resumenMediosPago: document.getElementById('resumen-medios-pago'),
+        totalRecibidoDisplay: document.getElementById('total-recibido-display')
+    };
+
+    if (!DOM.cierreForm) {
+        const desgloseCerrado = JSON.parse(DOM.desgloseCotizacionesDB.value || '{}');
+        let totalCerrado = 0;
+        Object.entries(desgloseCerrado).forEach(([metodo, monto]) => {
+            const valor = parseFloat(monto) || 0;
+            totalCerrado += valor;
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-white text-dark border px-3 py-2';
+            badge.textContent = `${metodo}: S/ ${formatCurrency(valor)}`;
+            DOM.resumenMediosPago.appendChild(badge);
+        });
+        DOM.totalRecibidoDisplay.textContent = `S/ ${formatCurrency(totalCerrado)}`;
+        return;
+    }
+
+    function formatCurrency(number) {
+        return new Intl.NumberFormat('{{ locale_actual }}', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(number);
+    }
+
+    function guardarVentas() {
+        sessionStorage.setItem(STORAGE_KEY_VENTAS, JSON.stringify(ventasDiarias));
+    }
+
+    function guardarDetalleCaja() {
+        sessionStorage.setItem(STORAGE_KEY_APERTURA, DOM.montoAperturaInput.value);
+        sessionStorage.setItem(STORAGE_KEY_INGRESOS, DOM.ingresosExtraInput.value);
+        sessionStorage.setItem(STORAGE_KEY_EGRESOS, DOM.egresosInput.value);
+        sessionStorage.setItem(STORAGE_KEY_EFECTIVO_CAJA, DOM.efectivoEnCajaInput.value);
+    }
+
+    function cargarDetalleCaja() {
+        const ultimoCierre = sessionStorage.getItem(STORAGE_KEY_ULTIMO_CIERRE);
+        if (ultimoCierre) {
+            DOM.montoAperturaInput.value = parseFloat(ultimoCierre).toFixed(2);
+            sessionStorage.removeItem(STORAGE_KEY_ULTIMO_CIERRE);
+            sessionStorage.removeItem(STORAGE_KEY_INGRESOS);
+            sessionStorage.removeItem(STORAGE_KEY_EGRESOS);
+            sessionStorage.removeItem(STORAGE_KEY_APERTURA);
+            sessionStorage.removeItem(STORAGE_KEY_EFECTIVO_CAJA);
+            DOM.ingresosExtraInput.value = '0.00';
+            DOM.egresosInput.value = '0.00';
+            DOM.efectivoEnCajaInput.value = '0.00';
+        } else {
+            DOM.montoAperturaInput.value = sessionStorage.getItem(STORAGE_KEY_APERTURA) || '0.00';
+            DOM.ingresosExtraInput.value = sessionStorage.getItem(STORAGE_KEY_INGRESOS) || '0.00';
+            DOM.egresosInput.value = sessionStorage.getItem(STORAGE_KEY_EGRESOS) || '0.00';
+            DOM.efectivoEnCajaInput.value = sessionStorage.getItem(STORAGE_KEY_EFECTIVO_CAJA) || '0.00';
+        }
+    }
+
+    function renderizarFilaManual(venta) {
+        return `
+            <tr data-id="${venta.id}" style="border-bottom: 1px solid #f1f5f9;">
+                <td class="ps-3 fw-bold text-dark">S/ ${formatCurrency(venta.monto)}</td>
+                <td>
+                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 mb-0.5" style="font-size: 0.7rem; font-weight: 600;">${venta.tipo_pago}</span>
+                    <small class="d-block text-muted" style="font-size: 0.75rem;">Manual</small>
+                </td>
+                <td class="text-center text-muted">${venta.hora}</td>
+                <td class="text-center pe-3">
+                    <button class="btn btn-sm btn-link text-danger p-0 btn-eliminar" data-id="${venta.id}" style="text-decoration: none;">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+
+    function aplicarColoresDiferencia(elemento, valor) {
+        elemento.classList.remove('cuadratura-exacta', 'cuadratura-sobrante', 'cuadratura-faltante');
+
+        if (Math.abs(valor) < 0.01) {
+            elemento.classList.add('cuadratura-exacta');
+        } else if (valor > 0) {
+            elemento.classList.add('cuadratura-sobrante');
+        } else {
+            elemento.classList.add('cuadratura-faltante');
+        }
+    }
+
+    function recalcularTotales() {
+        MODOS_PAGO.forEach(k => totales[k] = 0);
+        ventasDiarias.forEach(v => totales[v.tipo_pago] += v.monto);
+
+        const totalManual = Object.values(totales).reduce((a,b) => a+b, 0);
+        const efectivoManual = totales.Efectivo;
+        const otrosManual = totalManual - efectivoManual;
+
+        const efectivoDB = parseFloat(DOM.efectivoCotizacionesDB.value) || 0;
+        const otrosDB = parseFloat(DOM.otrosMediosCotizacionesDB.value) || 0;
+        const totalDB = parseFloat(DOM.totalCotizacionesDB.value) || 0;
+
+        const totalGeneral = totalManual + totalDB;
+        const efectivoTotal = efectivoManual + efectivoDB;
+        const otrosTotal = otrosManual + otrosDB;
+
+        DOM.displayGeneralResumen.textContent = `S/ ${formatCurrency(totalGeneral)}`;
+        DOM.efectivoTeoricoVentasDisplay.value = `S/ ${formatCurrency(efectivoTotal)}`;
+        DOM.totalOtrosMediosDisplay.value = `S/ ${formatCurrency(otrosTotal)}`;
+
+        DOM.totalVentasTeoricoInput.value = totalGeneral.toFixed(2);
+        DOM.efectivoTeoricoVentasHiddenInput.value = efectivoTotal.toFixed(2);
+        DOM.otrosMediosTeoricosInput.value = otrosTotal.toFixed(2);
+
+        let desgloseDB = {};
+        try { desgloseDB = JSON.parse(DOM.desgloseCotizacionesDB.value || '{}'); } catch (_) {}
+        const desglose = {...totales};
+        Object.entries(desgloseDB).forEach(([metodo, monto]) => {
+            desglose[metodo] = (desglose[metodo] || 0) + (parseFloat(monto) || 0);
+        });
+        DOM.resumenMediosPago.replaceChildren();
+        Object.entries(desglose).filter(([, monto]) => monto > 0).forEach(([metodo, monto]) => {
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-white text-dark border px-3 py-2';
+            badge.textContent = `${metodo}: S/ ${formatCurrency(monto)}`;
+            DOM.resumenMediosPago.appendChild(badge);
+        });
+        if (!DOM.resumenMediosPago.childElementCount) {
+            const empty = document.createElement('span');
+            empty.className = 'small text-muted';
+            empty.textContent = 'AÃºn no hay pagos registrados.';
+            DOM.resumenMediosPago.appendChild(empty);
+        }
+        DOM.totalRecibidoDisplay.textContent = `S/ ${formatCurrency(totalGeneral)}`;
+
+        DOM.desglosePagosJsonInput.value = JSON.stringify(desglose);
+        calcularDiferencias(efectivoTotal);
+    }
+
+    function calcularDiferencias(efectivoVentas) {
+        const apertura = parseFloat(DOM.montoAperturaInput.value) || 0;
+        const ingresos = parseFloat(DOM.ingresosExtraInput.value) || 0;
+        const egresos = parseFloat(DOM.egresosInput.value) || 0;
+        const fisico = parseFloat(DOM.efectivoEnCajaInput.value) || 0;
+
+        const teoricoFinal = apertura + ingresos + efectivoVentas - egresos;
+        const diferencia = fisico - teoricoFinal;
+
+        DOM.efectivoTeoricoFinalDisplay.value = `S/ ${formatCurrency(teoricoFinal)}`;
+        DOM.efectivoTeoricoFinalHiddenInput.value = teoricoFinal.toFixed(2);
+
+        DOM.diferenciaInput.value = `S/ ${formatCurrency(diferencia)}`;
+        DOM.diferenciaEfectivoHiddenInput.value = diferencia.toFixed(2);
+
+        aplicarColoresDiferencia(DOM.diferenciaInput, diferencia);
+    }
+
+    DOM.agregarVentaBtn.addEventListener('click', () => {
+        const monto = parseFloat(DOM.montoVentaInput.value);
+        if (isNaN(monto) || monto <= 0) return alert('Monto invÃ¡lido');
+
+        const venta = {
+            id: siguienteId++,
+            monto: monto,
+            tipo_pago: DOM.tipoPagoSelect.value
+        };
+        // Corregido: Se asigna la string formateada directamente sin el bug de sintaxis previo
+        venta.hora = new Date().toLocaleTimeString('{{ locale_actual }}', { hour: '2-digit', minute: '2-digit' });
+        ventasDiarias.push(venta);
+        DOM.tablaVentasManualBody.insertAdjacentHTML('beforeend', renderizarFilaManual(venta));
+        DOM.montoVentaInput.value = '';
+        recalcularTotales();
+        guardarVentas();
+    });
+
+    [DOM.montoAperturaInput, DOM.ingresosExtraInput, DOM.egresosInput, DOM.efectivoEnCajaInput].forEach(el => {
+        el.addEventListener('input', () => {
+            guardarDetalleCaja();
+            recalcularTotales();
+        });
+    });
+
+    DOM.tablaVentasManualBody.addEventListener('click', (e) => {
+        const btnEliminar = e.target.closest('.btn-eliminar');
+        if (btnEliminar) {
+            const id = parseInt(btnEliminar.dataset.id);
+            ventasDiarias = ventasDiarias.filter(v => v.id !== id);
+            btnEliminar.closest('tr').remove();
+            recalcularTotales();
+            guardarVentas();
+        }
+    });
+
+    DOM.cierreForm.addEventListener('submit', () => {
+        sessionStorage.setItem(STORAGE_KEY_ULTIMO_CIERRE, DOM.efectivoEnCajaInput.value);
+        sessionStorage.removeItem(STORAGE_KEY_VENTAS);
+        sessionStorage.removeItem(STORAGE_KEY_INGRESOS);
+        sessionStorage.removeItem(STORAGE_KEY_EGRESOS);
+        sessionStorage.removeItem(STORAGE_KEY_APERTURA);
+        sessionStorage.removeItem(STORAGE_KEY_EFECTIVO_CAJA);
+    });
+
+    cargarDetalleCaja();
+    DOM.tablaVentasManualBody.innerHTML = '';
+    ventasDiarias.forEach(v => DOM.tablaVentasManualBody.insertAdjacentHTML('beforeend', renderizarFilaManual(v)));
+    recalcularTotales();
+
+    document.querySelectorAll('.js-initial-display').forEach(el => {
+        const rawValue = parseFloat(el.dataset.value);
+        el.value = `S/ ${formatCurrency(rawValue)}`;
+    });
+
+    document.querySelectorAll('.js-db-monto').forEach(el => {
+        const monto = parseFloat(el.dataset.monto);
+        el.textContent = `S/ ${formatCurrency(monto)}`;
+    });
+});
+</script>
+{% endblock %}
+

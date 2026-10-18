@@ -1,0 +1,18 @@
+# Entorno y cachés de Python
+.venv/
+__pycache__/
+*.py[cod]
+*.log
+.idea/
+
+# Artefactos generados al empaquetar la aplicación
+build/
+dist/
+
+# Datos locales de la aplicación
+*.db
+
+# Configuración local y secretos
+.env
+.env.*
+!.env.example

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="{{ idioma_actual }}">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ t('caja_titulo') }} #{{ cierre.id }}</title>
+    <style>
+        /* --- CONFIGURACIÓN DE PÁGINA (xhtml2pdf específico) --- */
+        @page {
+            size: A4;
+            margin-top: 1.5cm;
+            margin-bottom: 2.5cm; /* Espacio para que el contenido no pise el footer */
+            margin-left: 1.5cm;
+            margin-right: 1.5cm;
+            
+            @frame footer_frame {
+                -pdf-frame-content: footerContent;
+                bottom: 1cm;
+                left: 1.5cm;
+                right: 1.5cm;
+                height: 1cm;
+            }
+        }
+
+        /* --- ESTILOS GENERALES --- */
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 10px;
+            color: #333;
+            line-height: 1.3;
+        }
+
+        /* --- HEADER SUPERIOR (LOGO Y TÍTULO) --- */
+        .top-header {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .company-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: #000;
+            text-transform: uppercase;
+            line-height: 1.2;
+            margin-bottom: 4px;
+        }
+        
+        .company-details {
+            font-size: 10px;
+            color: #000;
+            line-height: 1.4;
+        }
+
+        .report-main-title {
+            text-align: right;
+            font-size: 16px;
+            font-weight: bold;
+            color: #0056b3;
+            text-transform: uppercase;
+        }
+
+        /* --- BARRA DE INFORMACIÓN --- */
+        .info-bar {
+            width: 100%;
+            background-color: #f1f3f5;
+            border-top: 2px solid #0056b3;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 20px;
+        }
+        
+        .info-bar td {
+            padding: 6px;
+            vertical-align: middle;
+            font-size: 11px;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #0056b3;
+        }
+        
+        .info-value {
+            color: #333;
+            font-weight: bold;
+        }
+
+        /* --- TÍTULOS DE SECCIÓN --- */
+        .section-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #343a40;
+            padding: 4px 8px;
+            text-transform: uppercase;
+        }
+
+        /* --- TABLAS DE DATOS --- */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        
+        .data-table th, .data-table td {
+            border: 1px solid #ccc;
+            padding: 6px;
+            vertical-align: middle;
+        }
+        
+        .data-table th {
+            background-color: #e9ecef;
+            font-weight: bold;
+            color: #333;
+            text-align: left;
+        }
+        
+        .amount {
+            text-align: right;
+            font-family: Courier, monospace;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        
+        .text-success { color: #198754; }
+        .text-danger { color: #dc3545; }
+
+        /* --- TABLA COMPACTA (DESGLOSE) --- */
+        .compact-table th, .compact-table td {
+            padding: 4px 6px;
+            border: 1px solid #ddd;
+            font-size: 10px;
+        }
+        
+        .compact-table th {
+            background-color: #f8f9fa;
+            text-transform: uppercase;
+            font-size: 9px;
+        }
+
+        /* --- LAYOUT COLUMNAS --- */
+        .layout-table { 
+            width: 100%; 
+            border-collapse: collapse;
+            margin-bottom: 10px; 
+        }
+        
+        .layout-table td { 
+            border: none; 
+            vertical-align: top; 
+            padding: 0; 
+        }
+        
+        .col-spacer { 
+            width: 4%; 
+        }
+
+        /* --- BADGES Y TOTALES --- */
+        .badge-success { color: #198754; font-weight: bold; }
+        .badge-danger { color: #dc3545; font-weight: bold; }
+
+        .total-box {
+            background-color: #e7f1ff;
+            border: 1px solid #0056b3;
+            color: #004494;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        /* --- FOOTER --- */
+        #footerContent {
+            text-align: center;
+            font-size: 8px;
+            color: #aaa;
+            border-top: 1px solid #eee;
+            padding-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <table class="top-header">
+        <tr>
+            <td width="65%" valign="middle">
+                <table width="100%">
+                    <tr>
+                        <td width="60" valign="middle">
+                            <img src="static/images/donglai.png" width="50" alt="Logo">
+                        </td>
+                        <td valign="middle">
+                            <div class="company-name">DING FENG IMPORT AND EXPORT TRADE S.A.C.</div>
+                            <div class="company-details">
+                                <strong>RUC:</strong> 20608796859 <br>
+                                <strong>Tel:</strong> 929 877 778
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td width="35%" valign="middle">
+                <div class="report-main-title">{{ t('pdf_titulo_cierre') }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="info-bar">
+        <tr>
+            <td width="33%" align="left">
+                <span class="info-label">{{ t('pdf_nro') }}:</span>
+                <span class="info-value">#{{ cierre.id }}</span>
+            </td>
+            <td width="34%" align="center">
+                <span class="info-label">{{ t('cot_col_fecha') }}:</span>
+                <span class="info-value">{{ cierre.fecha }}</span>
+            </td>
+            <td width="33%" align="right">
+                <span class="info-label">{{ t('pdf_resp') }}:</span>
+                <span class="info-value">{{ cierre.nombre }}</span>
+            </td>
+        </tr>
+    </table>
+
+    <table class="layout-table">
+        <tr>
+            <td width="48%">
+                <div class="section-title">{{ t('pdf_sec_flujo') }}</div>
+                <table class="data-table">
+                    <tr>
+                        <th>{{ t('caja_apertura') }}</th>
+                        <td class="amount">S/ {{ "%.2f"|format(cierre.monto_apertura) }}</td>
+                    </tr>
+                    <tr>
+                        <th>(+) {{ t('caja_ingresos') }}</th>
+                        <td class="amount text-success">S/ {{ "%.2f"|format(cierre.ingresos_extra) }}</td>
+                    </tr>
+                    <tr>
+                        <th>(-) {{ t('caja_egresos') }}</th>
+                        <td class="amount text-danger">S/ {{ "%.2f"|format(cierre.egresos) }}</td>
+                    </tr>
+                    <tr style="background-color: #fff3cd;">
+                        <th>(=) {{ t('caja_teorico') }}</th>
+                        <td class="amount">S/ {{ "%.2f"|format(cierre.efectivo_teorico_final) }}</td>
+                    </tr>
+                </table>
+            </td>
+
+            <td class="col-spacer"></td>
+
+            <td width="48%">
+                <div class="section-title" style="background-color: #555;">{{ t('pdf_sec_arqueo') }}</div>
+                <table class="data-table">
+                    <tr>
+                        <th>{{ t('caja_real') }}</th>
+                        <td class="amount" style="font-size: 12px;">S/ {{ "%.2f"|format(cierre.efectivo_en_caja) }}</td>
+                    </tr>
+                    <tr>
+                        <th>{{ t('caja_diferencia') }}</th>
+                        <td class="amount">
+                            {% if cierre.diferencia < -0.01 %}
+                                <span class="badge-danger">{{ t('pdf_faltante') }}: {{ "%.2f"|format(cierre.diferencia) }}</span>
+                            {% elif cierre.diferencia > 0.01 %}
+                                <span class="badge-success">{{ t('pdf_sobrante') }}: {{ "%.2f"|format(cierre.diferencia) }}</span>
+                            {% else %}
+                                <span style="color:#198754;">{{ t('pdf_ok') }} (0.00)</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="total-box">
+                    {{ t('caja_ventas') }}: S/ {{ "%.2f"|format(cierre.total_ventas) }}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="section-title" style="margin-top: 5px; background-color: #666;">{{ t('pdf_sec_desglose') }}</div>
+    <table class="data-table compact-table" style="margin-top: 5px;">
+        <thead>
+            <tr>
+                <th width="30%">{{ t('pdf_metodo') }}</th>
+                <th width="30%" style="text-align: right;">{{ t('pdf_monto') }}</th>
+                <th width="40%">{{ t('pdf_nota') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Efectivo ({{ t('caja_ventas') }})</strong></td>
+                <td class="amount">S/ {{ "%.2f"|format(cierre.efectivo_teorico) }}</td>
+                <td style="color: #999; font-style: italic; font-size: 9px;">{{ t('pdf_moneda_fisica') }}</td>
+            </tr>
+            {% for medio, monto in cierre.desglose_pagos.items() %}
+                {% if monto > 0 %}
+                <tr>
+                    <td>{{ medio }}</td>
+                    <td class="amount">S/ {{ "%.2f"|format(monto) }}</td>
+                    <td></td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table class="layout-table" style="margin-top: 20px;">
+        <tr>
+            <td width="55%" style="padding-right: 5px;">
+                <div style="font-weight: bold; margin-bottom: 3px; font-size: 10px; text-transform: uppercase;">{{ t('caja_obs') }}:</div>
+                <div style="border: 1px solid #ccc; padding: 15px 8px; background: #f9f9f9; font-style: italic;">
+                    {{ cierre.observaciones if cierre.observaciones else t('pdf_sin_obs') }}
+                </div>
+            </td>
+            <td class="col-spacer"></td>
+            <td width="41%" valign="bottom">
+                <div style="border-top: 1px solid #000; margin-top: 40px; text-align: center; padding-top: 5px;">
+                    {{ t('pdf_firma') }} <br>
+                    <small style="color: #555;">{{ cierre.nombre }}</small>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div id="footerContent">
+        Sistema GAT - {{ t('pdf_impreso') }} {{ cierre.fecha }} - {{ t('pdf_pag') }} <pdf:pagenumber>
+    </div>
+
+</body>
+</html>

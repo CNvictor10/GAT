@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}Razones sociales{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Razones sociales</h1>
+            <p class="text-muted mb-0">Configura los datos que se guardan en cada cotización y en su PDF.</p>
+        </div>
+        <a href="{{ url_for('administrar_usuarios') }}" class="btn btn-outline-secondary">Administrar usuarios</a>
+    </div>
+
+    <div class="alert alert-info">Agrega aquí las dos empresas. El nombre legal y RUC quedarán registrados en la cotización; teléfono y medios de pago son opcionales.</div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5">Agregar razón social</h2>
+            <form method="POST" action="{{ url_for('crear_razon_social') }}" class="row g-3">
+                <div class="col-lg-4">
+                    <label class="form-label" for="empresa-nombre">Nombre legal</label>
+                    <input class="form-control" id="empresa-nombre" name="nombre" maxlength="180" required>
+                </div>
+                <div class="col-lg-2">
+                    <label class="form-label" for="empresa-ruc">RUC</label>
+                    <input class="form-control" id="empresa-ruc" name="ruc" inputmode="numeric" pattern="[0-9]{11}" maxlength="11">
+                </div>
+                <div class="col-lg-2">
+                    <label class="form-label" for="empresa-telefono">Teléfono</label>
+                    <input class="form-control" id="empresa-telefono" name="telefono" maxlength="40">
+                </div>
+                <div class="col-lg-4">
+                    <label class="form-label" for="empresa-pagos">Medios de pago</label>
+                    <textarea class="form-control" id="empresa-pagos" name="medios_pago" rows="2" maxlength="500"></textarea>
+                </div>
+                <div class="col-12 d-flex justify-content-end">
+                    <button class="btn btn-primary" type="submit">Agregar empresa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="d-grid gap-3">
+        {% for razon in razones %}
+        <form method="POST" action="{{ url_for('actualizar_razon_social', razon_id=razon['id']) }}" class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h6 mb-0">{{ razon['nombre'] }}</h2>
+                    {% if razon['activa'] %}<span class="badge text-bg-success">Activa</span>
+                    {% else %}<span class="badge text-bg-secondary">Inactiva</span>{% endif %}
+                </div>
+                <div class="row g-3">
+                    <div class="col-lg-4">
+                        <label class="form-label">Nombre legal</label>
+                        <input class="form-control" name="nombre" value="{{ razon['nombre'] }}" maxlength="180" required>
+                    </div>
+                    <div class="col-lg-2">
+                        <label class="form-label">RUC</label>
+                        <input class="form-control" name="ruc" value="{{ razon['ruc'] }}" inputmode="numeric" pattern="[0-9]{11}" maxlength="11">
+                    </div>
+                    <div class="col-lg-2">
+                        <label class="form-label">Teléfono</label>
+                        <input class="form-control" name="telefono" value="{{ razon['telefono'] }}" maxlength="40">
+                    </div>
+                    <div class="col-lg-4">
+                        <label class="form-label">Medios de pago</label>
+                        <textarea class="form-control" name="medios_pago" rows="2" maxlength="500">{{ razon['medios_pago'] }}</textarea>
+                    </div>
+                    <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <select class="form-select w-auto" name="activa" aria-label="Estado de {{ razon['nombre'] }}">
+                            <option value="1" {% if razon['activa'] %}selected{% endif %}>Activa para cotizar</option>
+                            <option value="0" {% if not razon['activa'] %}selected{% endif %}>Inactiva</option>
+                        </select>
+                        <button class="btn btn-outline-primary" type="submit">Guardar cambios</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+        {% else %}
+        <div class="alert alert-warning">Aún no hay razones sociales. Agrega las empresas antes de crear cotizaciones.</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

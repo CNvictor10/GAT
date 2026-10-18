@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Editar producto{% endblock %}
+{% block extra_css %}
+<style>
+.product-editor{max-width:920px;margin:1.5rem auto}.product-editor__hero{background:linear-gradient(120deg,var(--sidebar-bg),var(--primary-blue));color:#fff;border-radius:16px 16px 0 0;padding:1.5rem 1.75rem}.product-editor__card{border:1px solid #e4eaf1;border-top:0;border-radius:0 0 16px 16px;background:var(--bs-body-bg,#fff);box-shadow:0 14px 36px rgba(15,35,60,.08)}.product-editor__section{padding:1.35rem 1.75rem;border-bottom:1px solid #edf1f5}.product-editor__section h3{font-size:.92rem;font-weight:700;color:#263b53;margin:0 0 1rem}.product-editor .form-label{font-weight:600;color:#34465b;font-size:.88rem}.product-editor .form-control,.product-editor .input-group-text{min-height:44px;border-color:#d7e0ea}.product-editor .form-control:focus{border-color:var(--primary-blue);box-shadow:0 0 0 .2rem rgba(7,157,161,.16)}.product-editor__hint{color:#6c7c8f;font-size:.8rem}.product-editor__footer{padding:1.15rem 1.75rem;background:#f7f9fc;border-radius:0 0 16px 16px;display:flex;justify-content:flex-end;gap:.75rem}.product-editor__footer .btn{min-width:170px;min-height:44px;display:inline-flex;justify-content:center;align-items:center;font-weight:700}.product-editor__footer .btn-primary{color:#fff!important;background:var(--bs-primary)!important;border-color:var(--bs-primary)!important;opacity:1!important}.product-editor__footer .btn-outline-secondary{color:#3d4d5e!important;background:#fff!important;border-color:#aebbc9!important}@media(max-width:576px){.product-editor__hero,.product-editor__section,.product-editor__footer{padding:1.1rem}.product-editor__footer{flex-direction:column-reverse}.product-editor__footer .btn{width:100%}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="container product-editor">
+    <div class="product-editor__hero d-flex align-items-center gap-3">
+        <span class="rounded-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;background:rgba(255,255,255,.14)"><i class="fas fa-pen-to-square fs-4"></i></span>
+        <div><h1 class="h4 fw-bold mb-1">Editar producto</h1><p class="mb-0 small text-white-50">Actualiza los datos del producto <span class="text-white">#{{ producto['id'] }}</span>.</p></div>
+    </div>
+    <form class="product-editor__card" method="POST" enctype="multipart/form-data" action="{{ url_for('editar_inventario', id=producto['id']) }}">
+        <section class="product-editor__section">
+            <h3><i class="fas fa-tag text-primary me-2"></i>Datos del producto</h3>
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label" for="nombre">Nombre del producto <span class="text-danger">*</span></label><input type="text" class="form-control" id="nombre" name="nombre" value="{{ producto['nombre'] }}" required></div>
+                <div class="col-md-6"><label class="form-label" for="descripcion">Descripción <span class="text-muted">(opcional)</span></label><input class="form-control" id="descripcion" name="descripcion" value="{{ producto['descripcion'] }}" placeholder="Marca, modelo o característica"></div>
+                <div class="col-12"><label class="form-label" for="imagen">Imagen del producto <span class="text-muted">(opcional)</span></label><div class="d-flex align-items-center gap-3 flex-wrap">{% if producto['imagen'] %}<img src="{{ url_for('static', filename=producto['imagen']) }}" alt="Imagen actual de {{ producto['nombre'] }}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid #dce4ed" id="product-image-preview">{% else %}<div id="product-image-placeholder" class="d-flex align-items-center justify-content-center text-muted" style="width:72px;height:72px;background:#f3f6f9;border-radius:10px;border:1px dashed #bdc9d6"><i class="fas fa-image fs-4"></i></div><img id="product-image-preview" alt="Vista previa" style="display:none;width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid #dce4ed">{% endif %}<div class="flex-grow-1"><input class="form-control" type="file" id="imagen" name="imagen" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"><div class="product-editor__hint mt-1">Sube JPG, PNG o WEBP para reemplazar la imagen actual.</div>{% if producto['imagen'] %}<label class="small text-muted mt-2"><input type="checkbox" name="quitar_imagen" value="1" class="form-check-input me-1">Quitar imagen actual</label>{% endif %}</div></div></div>
+            </div>
+        </section>
+        <section class="product-editor__section">
+            <h3><i class="fas fa-boxes-stacked text-primary me-2"></i>Stock y empaque</h3>
+            <div class="row g-3">
+                <div class="col-sm-4"><label class="form-label" for="cantidad">Existencias <span class="text-danger">*</span></label><div class="input-group"><input type="number" class="form-control" id="cantidad" name="cantidad" min="0" value="{{ producto['cantidad'] }}" required><span class="input-group-text">unid.</span></div></div>
+                <div class="col-sm-4"><label class="form-label" for="unidades_por_caja">Unidades por caja</label><div class="input-group"><input type="number" class="form-control" id="unidades_por_caja" name="unidades_por_caja" min="0" value="{{ producto['unidades_por_caja'] }}"><span class="input-group-text">unid.</span></div></div>
+                <div class="col-sm-4"><label class="form-label" for="umbral_stock">Avisar cuando queden <span class="text-danger">*</span></label><div class="input-group"><input type="number" class="form-control" id="umbral_stock" name="umbral_stock" min="0" value="{{ producto['umbral_stock'] }}" required><span class="input-group-text">unid.</span></div></div>
+            </div><div class="product-editor__hint mt-2">Se mostrará una alerta cuando el stock llegue al mínimo indicado.</div>
+        </section>
+        <section class="product-editor__section">
+            <h3><i class="fas fa-tags text-primary me-2"></i>Precios de venta</h3>
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label" for="precio_unitario">Precio de venta por caja (S/) <span class="text-danger">*</span></label><div class="input-group"><span class="input-group-text">S/</span><input type="number" step="0.01" class="form-control" id="precio_unitario" name="precio_unitario" min="0" value="{{ '%.2f'|format(producto['precio_unitario']) }}" required></div></div>
+                <div class="col-md-6"><label class="form-label" for="precio_unidad_nuevo">Precio de venta por unidad (S/)</label><div class="input-group"><span class="input-group-text">S/</span><input type="number" step="0.01" class="form-control" id="precio_unidad_nuevo" name="precio_unidad_nuevo" min="0" value="{{ '%.2f'|format(producto['precio_unidad']) }}"></div></div>
+            </div><div class="product-editor__hint mt-2">Estos son los precios que pueden aparecer en la cotización y su PDF. El costo de compra es interno y no se muestra aquí.</div>
+        </section>
+        <div class="product-editor__footer"><a href="{{ url_for('listar_inventario') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i>Cancelar</a><button type="submit" class="btn btn-primary"><i class="fas fa-check me-2"></i>Guardar cambios</button></div>
+    </form>
+</div>
+<script>
+document.getElementById('imagen')?.addEventListener('change', function (event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const preview = document.getElementById('product-image-preview');
+    const placeholder = document.getElementById('product-image-placeholder');
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
+});
+</script>
+{% endblock %}

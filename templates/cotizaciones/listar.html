@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('COTIZACIONES') }}{% endblock %}
+{% block extra_css %}
+<style>
+.quotes-page{width:100%;max-width:3000px;margin:1.25rem auto;color:#172b43}.quotes-header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.25rem}.quotes-title{font-size:1.65rem;font-weight:750;letter-spacing:-.025em;margin:0;color:#122b49}.quotes-subtitle{color:#718096;margin:.3rem 0 0;font-size:.92rem}.quotes-actions{display:flex;gap:.6rem;flex-wrap:wrap}.quotes-actions .btn{min-height:42px;display:inline-flex;align-items:center;gap:.45rem;font-weight:650}.quotes-toolbar,.quotes-table-card{background:#fff;border:1px solid #e5ebf2;border-radius:14px;box-shadow:0 5px 18px rgba(20,45,75,.045)}.quotes-toolbar{padding:.9rem 1rem;margin-bottom:.9rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}.quotes-search{width:min(100%,440px)}.quotes-search .form-control,.quotes-search .btn{min-height:40px}.quotes-table-card{overflow:hidden}.quotes-table-wrap{overflow-x:auto}.quotes-table{min-width:1050px;margin:0;border-collapse:separate;border-spacing:0}.quotes-table thead th{padding:.8rem .9rem;background:#f7f9fc;color:#718096;font-size:.71rem;text-transform:uppercase;letter-spacing:.055em;font-weight:750;border-bottom:1px solid #e7edf4;white-space:nowrap}.quotes-table tbody td{padding:.78rem .9rem;border-bottom:1px solid #edf1f5;vertical-align:middle;font-size:.87rem}.quotes-table tbody tr:last-child td{border-bottom:0}.quotes-table tbody tr:hover{background:#f9fbfd}.quote-number{font-weight:700;color:var(--primary-blue-dark)}.quote-client{font-weight:650;color:#183653}.quote-actions{display:flex;flex-wrap:nowrap;justify-content:flex-end;align-items:center;gap:.45rem}.quote-actions .btn{margin:0;min-width:88px;min-height:36px;display:inline-flex;align-items:center;justify-content:center;font-weight:650;white-space:nowrap}.quote-empty{padding:3rem 1rem!important;text-align:center;color:#77869a}.quote-empty i{display:block;font-size:1.8rem;color:#aab7c5;margin-bottom:.65rem}@media(max-width:767px){.quotes-page{margin:.5rem auto}.quotes-header{flex-direction:column}.quotes-actions{width:100%}.quotes-actions .btn{flex:1;justify-content:center}.quotes-toolbar{align-items:stretch;flex-direction:column}.quotes-search{width:100%}.quote-actions{justify-content:flex-start}}
+</style>
+{% endblock %}
+{% block content %}
+<main class="container-fluid quotes-page">
+    <header class="quotes-header">
+        <div><h1 class="quotes-title"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>{{ t('COTIZACIONES') }}</h1><p class="quotes-subtitle">Consulta cotizaciones, estado, cliente y creador.</p></div>
+        <div class="quotes-actions">
+            <a href="{{ url_for('nueva_cotizacion') }}" class="btn btn-primary"><i class="fas fa-plus"></i>{{ t('cot_btn_nueva') }}</a>
+            <a href="{{ url_for('menu_inicio') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i>{{ t('btn_volver_inicio') }}</a>
+        </div>
+    </header>
+
+    <section class="quotes-toolbar">
+        <form action="{{ url_for('listar_cotizaciones') }}" method="GET" class="input-group quotes-search">
+            <span class="input-group-text bg-white text-muted"><i class="fas fa-search"></i></span>
+            <input type="search" class="form-control border-start-0" name="search_query" placeholder="Buscar por cliente" value="{{ search_query or '' }}" aria-label="Buscar cliente">
+            <button type="submit" class="btn btn-outline-primary">Buscar</button>
+            {% if search_query %}<a href="{{ url_for('listar_cotizaciones') }}" class="btn btn-outline-secondary" title="Limpiar búsqueda"><i class="fas fa-times"></i></a>{% endif %}
+        </form>
+        <span class="small text-muted">{{ cotizaciones|length }} cotización(es)</span>
+    </section>
+
+    <section class="quotes-table-card">
+        <div class="quotes-table-wrap"><table class="table quotes-table align-middle">
+            <thead><tr>
+                <th>{{ t('ID') }}</th><th>{{ t('Cliente') }}</th><th>Razón social</th><th>{{ t('Fecha') }}</th>
+                <th class="text-end">{{ t('Total') }}</th><th>{{ t('Estado') }}</th><th>{{ t('Creador') }}</th><th class="text-end">{{ t('Acciones') }}</th>
+            </tr></thead>
+            <tbody>
+            {% for cotizacion in cotizaciones %}
+                <tr>
+                    <td class="quote-number">#{{ cotizacion[0] }}</td><td class="quote-client">{{ cotizacion[1] }}</td>
+                    <td>{{ cotizacion[7] or 'Sin asignar' }}</td><td>{{ cotizacion[2] }}</td>
+                    <td class="text-end fw-semibold">S/ {{ '%.2f'|format(cotizacion[3]) }}</td>
+                    <td>
+                        {% set estado = cotizacion[4] %}
+                        {% if estado in ['Aprobada', 'Pagada'] %}<span class="badge text-bg-success">Pagada</span>
+                        {% elif estado == 'Pendiente' %}<span class="badge text-bg-warning">{{ t('estado_pendiente') }}</span>
+                        {% elif estado == 'Parcial' %}<span class="badge text-bg-info">Pago parcial</span>
+                        {% elif estado == 'Rechazado' %}<span class="badge text-bg-danger">{{ t('estado_rechazado') }}</span>
+                        {% else %}<span class="badge text-bg-secondary">{{ estado }}</span>{% endif %}
+                    </td>
+                    <td>{{ cotizacion[5] }}</td>
+                    <td><div class="quote-actions">
+                        <a href="{{ url_for('detalle_cotizacion', id=cotizacion[0]) }}" class="btn btn-sm btn-outline-primary" title="{{ t('btn_ver_detalle') }}"><i class="fas fa-eye me-1"></i>Ver</a>
+                        {% if current_user.rol == 'admin' %}<form action="{{ url_for('eliminar_cotizacion', id=cotizacion[0]) }}" method="POST" class="m-0" onsubmit="return confirm('{{ t('confirm_eliminar_cot').format(cotizacion[0]) }}')"><button type="submit" class="btn btn-sm btn-outline-danger" title="{{ t('btn_eliminar') }}"><i class="fas fa-trash me-1"></i>Eliminar</button></form>{% endif %}
+                    </div></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="8" class="quote-empty"><i class="fas fa-file-circle-question"></i>{% if search_query %}{{ t('msg_no_cot_busqueda').format(search_query) }}{% else %}{{ t('msg_no_cot_general') }}{% endif %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+    </section>
+</main>
+{% endblock %}
